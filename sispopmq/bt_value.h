@@ -27,21 +27,19 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
-#include <oxenc/hex.h>
 
-// Compatibility shim for oxenc includes
+// Compatibility shim for sispopc includes
 
-namespace oxenmq {
+#include <sispopc/bt_value.h>
 
-using oxenc::to_hex_size;
-using oxenc::from_hex_size;
-using oxenc::hex_encoder;
-using oxenc::to_hex;
-using oxenc::is_hex_digit;
-using oxenc::is_hex;
-using oxenc::hex_decoder;
-using oxenc::from_hex_digit;
-using oxenc::from_hex_pair;
-using oxenc::from_hex;
+namespace sispopmq {
+
+using sispopc::bt_value;
+using sispopc::bt_dict;
+using sispopc::bt_list;
+using sispopc::bt_variant;
+
+using sispopc::has_alternative;
+using sispopc::has_alternative_v;
 
 }

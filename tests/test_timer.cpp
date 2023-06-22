@@ -1,10 +1,10 @@
-#include "oxenmq/oxenmq.h"
+#include "sispopmq/sispopmq.h"
 #include "common.h"
 #include <chrono>
 #include <future>
 
 TEST_CASE("timer test", "[timer][basic]") {
-    oxenmq::OxenMQ omq{get_logger(""), LogLevel::trace};
+    sispopmq::SispopMQ omq{get_logger(""), LogLevel::trace};
 
     omq.set_general_threads(1);
     omq.set_batch_threads(1);
@@ -23,7 +23,7 @@ TEST_CASE("timer test", "[timer][basic]") {
 }
 
 TEST_CASE("timer squelch", "[timer][squelch]") {
-    oxenmq::OxenMQ omq{get_logger(""), LogLevel::trace};
+    sispopmq::SispopMQ omq{get_logger(""), LogLevel::trace};
 
     omq.set_general_threads(3);
     omq.set_batch_threads(3);
@@ -75,7 +75,7 @@ TEST_CASE("timer squelch", "[timer][squelch]") {
 }
 
 TEST_CASE("timer cancel", "[timer][cancel]") {
-    oxenmq::OxenMQ omq{get_logger(""), LogLevel::trace};
+    sispopmq::SispopMQ omq{get_logger(""), LogLevel::trace};
 
     omq.set_general_threads(1);
     omq.set_batch_threads(1);
@@ -99,7 +99,7 @@ TEST_CASE("timer cancel", "[timer][cancel]") {
         REQUIRE( ticks.load() == 3 );
     }
 
-    // Test the alternative taking an lvalue reference instead of returning by value (see oxenmq.h
+    // Test the alternative taking an lvalue reference instead of returning by value (see sispopmq.h
     // for why this is sometimes needed).
     std::atomic<int> ticks3 = 0;
     std::weak_ptr<TimerID> w_timer3;

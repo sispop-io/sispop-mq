@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020, The Oxen Project
+// Copyright (c) 2019-2021, The Oxen Project
 //
 // All rights reserved.
 //
@@ -27,22 +27,21 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
+#include <sispopc/hex.h>
 
-// Compatibility shim for oxenc includes
+// Compatibility shim for sispopc includes
 
-#include <oxenc/bt_serialize.h>
+namespace sispopmq {
 
-namespace oxenmq {
+using sispopc::to_hex_size;
+using sispopc::from_hex_size;
+using sispopc::hex_encoder;
+using sispopc::to_hex;
+using sispopc::is_hex_digit;
+using sispopc::is_hex;
+using sispopc::hex_decoder;
+using sispopc::from_hex_digit;
+using sispopc::from_hex_pair;
+using sispopc::from_hex;
 
-using oxenc::bt_deserialize_invalid;
-using oxenc::bt_deserialize_invalid_type;
-using oxenc::bt_serializer;
-using oxenc::bt_serialize;
-using oxenc::bt_deserialize;
-using oxenc::bt_get;
-using oxenc::get_int;
-using oxenc::get_tuple;
-using oxenc::bt_dict_consumer;
-using oxenc::bt_list_consumer;
-
-} // namespace oxenmq
+}

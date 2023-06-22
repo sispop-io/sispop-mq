@@ -2,11 +2,11 @@
 #include <map>
 #include <set>
 
-using namespace oxenmq;
+using namespace sispopmq;
 
 TEST_CASE("failure responses - UNKNOWNCOMMAND", "[failure][UNKNOWNCOMMAND]") {
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -47,7 +47,7 @@ TEST_CASE("failure responses - UNKNOWNCOMMAND", "[failure][UNKNOWNCOMMAND]") {
 
 TEST_CASE("failure responses - NO_REPLY_TAG", "[failure][NO_REPLY_TAG]") {
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -108,7 +108,7 @@ TEST_CASE("failure responses - NO_REPLY_TAG", "[failure][NO_REPLY_TAG]") {
 
 TEST_CASE("failure responses - FORBIDDEN", "[failure][FORBIDDEN]") {
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -191,7 +191,7 @@ TEST_CASE("failure responses - FORBIDDEN", "[failure][FORBIDDEN]") {
 
 TEST_CASE("failure responses - NOT_A_SERVICE_NODE", "[failure][NOT_A_SERVICE_NODE]") {
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -258,7 +258,7 @@ TEST_CASE("failure responses - NOT_A_SERVICE_NODE", "[failure][NOT_A_SERVICE_NOD
 
 TEST_CASE("failure responses - FORBIDDEN_SN", "[failure][FORBIDDEN_SN]") {
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },

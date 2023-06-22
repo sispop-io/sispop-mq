@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2021, The Oxen Project
+// Copyright (c) 2019-2020, The Oxen Project
 //
 // All rights reserved.
 //
@@ -28,18 +28,21 @@
 
 #pragma once
 
-// Compatibility shim for oxenc includes
+// Compatibility shim for sispopc includes
 
-#include <oxenc/bt_value.h>
+#include <sispopc/bt_serialize.h>
 
-namespace oxenmq {
+namespace sispopmq {
 
-using oxenc::bt_value;
-using oxenc::bt_dict;
-using oxenc::bt_list;
-using oxenc::bt_variant;
+using sispopc::bt_deserialize_invalid;
+using sispopc::bt_deserialize_invalid_type;
+using sispopc::bt_serializer;
+using sispopc::bt_serialize;
+using sispopc::bt_deserialize;
+using sispopc::bt_get;
+using sispopc::get_int;
+using sispopc::get_tuple;
+using sispopc::bt_dict_consumer;
+using sispopc::bt_list_consumer;
 
-using oxenc::has_alternative;
-using oxenc::has_alternative_v;
-
-}
+} // namespace sispopmq

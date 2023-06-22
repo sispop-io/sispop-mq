@@ -2,16 +2,16 @@
 #include <vector>
 #include "connections.h"
 
-namespace oxenmq {
+namespace sispopmq {
 
-class OxenMQ;
+class SispopMQ;
 
 /// Encapsulates an incoming message from a remote connection with message details plus extra
 /// info need to send a reply back through the proxy thread via the `reply()` method.  Note that
 /// this object gets reused: callbacks should use but not store any reference beyond the callback.
 class Message {
 public:
-    OxenMQ& oxenmq; ///< The owning OxenMQ object
+    SispopMQ& sispopmq; ///< The owning SispopMQ object
     std::vector<std::string_view> data; ///< The provided command data parts, if any.
     ConnectionID conn; ///< The connection info for routing a reply; also contains the pubkey/sn status.
     std::string reply_tag; ///< If the invoked command is a request command this is the required reply tag that will be prepended by `send_reply()`.
@@ -19,8 +19,8 @@ public:
     std::string remote; ///< Some sort of remote address from which the request came.  Often "IP" for TCP connections and "localhost:UID:GID:PID" for unix socket connections.
 
     /// Constructor
-    Message(OxenMQ& omq, ConnectionID cid, Access access, std::string remote)
-        : oxenmq{omq}, conn{std::move(cid)}, access{std::move(access)}, remote{std::move(remote)} {}
+    Message(SispopMQ& omq, ConnectionID cid, Access access, std::string remote)
+        : sispopmq{omq}, conn{std::move(cid)}, access{std::move(access)}, remote{std::move(remote)} {}
 
     // Non-copyable
     Message(const Message&) = delete;
@@ -69,11 +69,11 @@ public:
      */
     class DeferredSend {
     public:
-        OxenMQ& oxenmq; ///< The owning OxenMQ object
+        SispopMQ& sispopmq; ///< The owning SispopMQ object
         ConnectionID conn; ///< The connection info for routing a reply; also contains the pubkey/sn status
         std::string reply_tag; ///< If the invoked command is a request command this is the required reply tag that will be prepended by `reply()`.
 
-        explicit DeferredSend(Message& m) : oxenmq{m.oxenmq}, conn{m.conn}, reply_tag{m.reply_tag} {}
+        explicit DeferredSend(Message& m) : sispopmq{m.sispopmq}, conn{m.conn}, reply_tag{m.reply_tag} {}
 
         template <typename... Args>
         void operator()(Args &&...args) const {

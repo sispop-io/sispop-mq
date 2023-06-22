@@ -28,18 +28,18 @@
 
 #pragma once
 
-// Compatibility shim for oxenc includes
+// Compatibility shim for sispopc includes
 //
-#include <oxenc/base32z.h>
+#include <sispopc/base32z.h>
 
-namespace oxenmq {
+namespace sispopmq {
 
-using oxenc::to_base32z_size;
-using oxenc::from_base32z_size;
-using oxenc::base32z_encoder;
-using oxenc::to_base32z;
-using oxenc::is_base32z;
-using oxenc::base32z_decoder;
-using oxenc::from_base32z;
+using sispopc::to_base32z_size;
+using sispopc::from_base32z_size;
+using sispopc::base32z_encoder;
+using sispopc::to_base32z;
+using sispopc::is_base32z;
+using sispopc::base32z_decoder;
+using sispopc::from_base32z;
 
 }

@@ -49,7 +49,7 @@
 #include <variant>
 #include "zmq.hpp"
 #include "address.h"
-#include <oxenc/bt_serialize.h>
+#include <sispopc/bt_serialize.h>
 #include "connections.h"
 #include "message.h"
 #include "auth.h"
@@ -59,7 +59,7 @@
 #error "ZMQ >= 4.3.0 required"
 #endif
 
-namespace oxenmq {
+namespace sispopmq {
 
 using namespace std::literals;
 
@@ -106,7 +106,7 @@ struct TaggedThreadID {
 private:
     int _id;
     explicit constexpr TaggedThreadID(int id) : _id{id} {}
-    friend class OxenMQ;
+    friend class SispopMQ;
     template <typename R> friend class Batch;
     friend class Job;
 };
@@ -119,21 +119,21 @@ struct TimerID {
 private:
     int _id;
     explicit constexpr TimerID(int id) : _id{id} {}
-    friend class OxenMQ;
+    friend class SispopMQ;
 };
 
 /**
- * Class that handles OxenMQ listeners, connections, proxying, and workers.  An application
+ * Class that handles SispopMQ listeners, connections, proxying, and workers.  An application
  * typically has just one instance of this class.
  */
-class OxenMQ {
+class SispopMQ {
 
 private:
 
     /// The global context
     zmq::context_t context;
 
-    /// A unique id for this OxenMQ instance, assigned in a thread-safe manner during construction.
+    /// A unique id for this SispopMQ instance, assigned in a thread-safe manner during construction.
     const int object_id;
 
     /// The x25519 keypair of this connection.  For service nodes these are the long-run x25519 keys
@@ -158,10 +158,10 @@ private:
     std::mutex control_sockets_mutex;
 
     /// Called to obtain a "command" socket that attaches to `control` to send commands to the
-    /// proxy thread from other threads.  This socket is unique per thread and OxenMQ instance.
+    /// proxy thread from other threads.  This socket is unique per thread and SispopMQ instance.
     zmq::socket_t& get_control_socket();
 
-    /// Per-thread control sockets used by oxenmq threads to talk to this object's proxy thread.
+    /// Per-thread control sockets used by sispopmq threads to talk to this object's proxy thread.
     std::unordered_map<std::thread::id, std::unique_ptr<zmq::socket_t>> control_sockets;
 
 public:
@@ -194,7 +194,7 @@ public:
     using ReplyCallback = std::function<void(bool success, std::vector<std::string> data)>;
 
     /// Called to write a log message.  This will only be called if the `level` is >= the current
-    /// OxenMQ object log level.  It must be a raw function pointer (or a capture-less lambda) for
+    /// SispopMQ object log level.  It must be a raw function pointer (or a capture-less lambda) for
     /// performance reasons.  Takes four arguments: the log level of the message, the filename and
     /// line number where the log message was invoked, and the log message itself.
     using Logger = std::function<void(LogLevel level, const char* file, int line, std::string msg)>;
@@ -205,12 +205,12 @@ public:
     using ConnectFailure = std::function<void(ConnectionID, std::string_view)>;
 
     /// Explicitly non-copyable, non-movable because most things here aren't copyable, and a few
-    /// things aren't movable, either.  If you need to pass the OxenMQ instance around, wrap it
+    /// things aren't movable, either.  If you need to pass the SispopMQ instance around, wrap it
     /// in a unique_ptr or shared_ptr.
-    OxenMQ(const OxenMQ&) = delete;
-    OxenMQ& operator=(const OxenMQ&) = delete;
-    OxenMQ(OxenMQ&&) = delete;
-    OxenMQ& operator=(OxenMQ&&) = delete;
+    SispopMQ(const SispopMQ&) = delete;
+    SispopMQ& operator=(const SispopMQ&) = delete;
+    SispopMQ(SispopMQ&&) = delete;
+    SispopMQ& operator=(SispopMQ&&) = delete;
 
     /** How long to wait for handshaking to complete on external connections before timing out and
      * closing the connection.  Setting this only affects new outgoing connections. */
@@ -220,8 +220,8 @@ public:
      * connections.  Using the pubkey is desirable when connections between endpoints are unique as
      * it allows the listener to recognize that the incoming connection is a reconnection from the
      * same remote and handover routing to the new socket while closing off the (likely dead) old
-     * socket.  This, however, prevents a single OxenMQ instance (or multiple OxenMQ instances using
-     * the same keys) from establishing multiple connections to the same listening OxenMQ, which is
+     * socket.  This, however, prevents a single SispopMQ instance (or multiple SispopMQ instances using
+     * the same keys) from establishing multiple connections to the same listening SispopMQ, which is
      * sometimes useful (for example when testing, or when sharing an authentication key), and so
      * this option can be overridden to `true` to use completely random zmq routing ids on outgoing
      * connections (which will thus allow multiple connections).
@@ -245,13 +245,13 @@ public:
 
     /** Minimum reconnect interval: when a connection fails or dies, wait this long before
      * attempting to reconnect.  (ZMQ may randomize the value somewhat to avoid reconnection
-     * storms).  See RECONNECT_INTERVAL_MAX as well.  The OxenMQ default is 250ms.
+     * storms).  See RECONNECT_INTERVAL_MAX as well.  The SispopMQ default is 250ms.
      */
     std::chrono::milliseconds RECONNECT_INTERVAL = 250ms;
 
     /** Maximum reconnect interval.  When this is set to a value larger than RECONNECT_INTERVAL then
      * ZMQ's reconnection logic uses an exponential backoff: each reconnection attempts waits twice
-     * as long as the previous attempt, up to this maximum.  The OxenMQ default is 5 seconds.
+     * as long as the previous attempt, up to this maximum.  The SispopMQ default is 5 seconds.
      */
     std::chrono::milliseconds RECONNECT_INTERVAL_MAX = 5s;
 
@@ -566,22 +566,22 @@ private:
     /// CONNECT_SN command telling us to connect to a new pubkey.  Returns the socket (which could
     /// be existing or a new one).  This basically just unpacks arguments and passes them on to
     /// proxy_connect_sn().
-    std::pair<zmq::socket_t*, std::string> proxy_connect_sn(oxenc::bt_dict_consumer data);
+    std::pair<zmq::socket_t*, std::string> proxy_connect_sn(sispopc::bt_dict_consumer data);
 
     /// Opens a new connection to a remote, with callbacks.  This is the proxy-side implementation
     /// of the `connect_remote()` call.
-    void proxy_connect_remote(oxenc::bt_dict_consumer data);
+    void proxy_connect_remote(sispopc::bt_dict_consumer data);
 
     /// Called to disconnect our remote connection to the given id (if we have one).
-    void proxy_disconnect(oxenc::bt_dict_consumer data);
+    void proxy_disconnect(sispopc::bt_dict_consumer data);
     void proxy_disconnect(ConnectionID conn, std::chrono::milliseconds linger);
 
     /// SEND command.  Does a connect first, if necessary.
-    void proxy_send(oxenc::bt_dict_consumer data);
+    void proxy_send(sispopc::bt_dict_consumer data);
 
     /// REPLY command.  Like SEND, but only has a listening socket route to send back to and so is
     /// weaker (i.e. it cannot reconnect to the SN if the connection is no longer open).
-    void proxy_reply(oxenc::bt_dict_consumer data);
+    void proxy_reply(sispopc::bt_dict_consumer data);
 
     /// Individual batch jobs waiting to run; .second is the 0-n batch number or -1 for the
     /// completion job
@@ -595,14 +595,14 @@ private:
     /// Runs any queued batch jobs
     void proxy_run_batch_jobs(batch_queue& jobs, int reserved, int& active, bool reply);
 
-    /// BATCH command.  Called with a Batch<R> (see oxenmq/batch.h) object pointer for the proxy to
+    /// BATCH command.  Called with a Batch<R> (see sispopmq/batch.h) object pointer for the proxy to
     /// take over and queue batch jobs.
     void proxy_batch(detail::Batch* batch);
 
     /// TIMER command.  Called with a serialized list containing: our local timer_id, function
     /// pointer to assume ownership of, an interval count (in ms), and whether or not jobs should be
     /// squelched (see `add_timer()`).
-    void proxy_timer(oxenc::bt_list_consumer timer_data);
+    void proxy_timer(sispopc::bt_list_consumer timer_data);
 
     /// Same, but deserialized
     void proxy_timer(int timer_id, std::function<void()> job, std::chrono::milliseconds interval, bool squelch, int thread);
@@ -678,14 +678,14 @@ private:
     /// Resets or updates the stored set of active SN pubkeys
     void proxy_set_active_sns(std::string_view data);
     void proxy_set_active_sns(pubkey_set pubkeys);
-    void proxy_update_active_sns(oxenc::bt_list_consumer data);
+    void proxy_update_active_sns(sispopc::bt_list_consumer data);
     void proxy_update_active_sns(pubkey_set added, pubkey_set removed);
     void proxy_update_active_sns_clean(pubkey_set added, pubkey_set removed);
 
     /// Details for a pending command; such a command already has authenticated access and is just
     /// waiting for a thread to become available to handle it.  This also gets used (via the
     /// `callback` variant) for injected external jobs to be able to integrate some external
-    /// interface with the oxenmq job queue.
+    /// interface with the sispopmq job queue.
     struct pending_command {
         category& cat;
         std::string command;
@@ -793,7 +793,7 @@ private:
 
 public:
     /**
-     * OxenMQ constructor.  This constructs the object but does not start it; you will typically
+     * SispopMQ constructor.  This constructs the object but does not start it; you will typically
      * want to first add categories and commands, then finish startup by invoking `start()`.
      * (Categories and commands cannot be added after startup).
      *
@@ -823,7 +823,7 @@ public:
      * @param level the initial log level; defaults to warn.  The log level can be changed later by
      * calling log_level(...).
      */
-    OxenMQ( std::string pubkey,
+    SispopMQ( std::string pubkey,
             std::string privkey,
             bool service_node,
             SNRemoteAddress sn_lookup,
@@ -831,26 +831,26 @@ public:
             LogLevel level = LogLevel::warn);
 
     /**
-     * Simplified OxenMQ constructor for a non-listening client or simple listener without any
-     * outgoing SN connection lookup capabilities.  The OxenMQ object will not be able to establish
+     * Simplified SispopMQ constructor for a non-listening client or simple listener without any
+     * outgoing SN connection lookup capabilities.  The SispopMQ object will not be able to establish
      * new connections (including reconnections) to service nodes by pubkey.
      */
-    explicit OxenMQ(
+    explicit SispopMQ(
             Logger logger = nullptr,
             LogLevel level = LogLevel::warn)
-        : OxenMQ("", "", false, [](auto) { return ""s; /*no peer lookups*/ }, std::move(logger), level) {}
+        : SispopMQ("", "", false, [](auto) { return ""s; /*no peer lookups*/ }, std::move(logger), level) {}
 
     /**
      * Destructor; instructs the proxy to quit.  The proxy tells all workers to quit, waits for them
      * to quit and rejoins the threads then quits itself.  The outer thread (where the destructor is
      * running) rejoins the proxy thread.
      */
-    ~OxenMQ();
+    ~SispopMQ();
 
-    /// Sets the log level of the OxenMQ object.
+    /// Sets the log level of the SispopMQ object.
     void log_level(LogLevel level);
 
-    /// Gets the log level of the OxenMQ object.
+    /// Gets the log level of the SispopMQ object.
     LogLevel log_level() const;
 
     /**
@@ -913,7 +913,7 @@ public:
      *
      * Aliases should follow the `category.command` format for both the from and to names, and
      * should only be called for `to` categories that are already defined.  The category name is not
-     * currently enforced on the `from` name (for backwards compatility with Oxen's quorumnet code)
+     * currently enforced on the `from` name (for backwards compatility with Sispop's quorumnet code)
      * but will be at some point.
      *
      * Access permissions for an aliased command depend only on the mapped-to value; for example, if
@@ -936,7 +936,7 @@ public:
      * \param name - the name of the thread; will be used in log messages and (if supported by the
      * OS) as the system thread name.
      *
-     * \param start - an optional callback to invoke from the thread as soon as OxenMQ itself starts
+     * \param start - an optional callback to invoke from the thread as soon as SispopMQ itself starts
      * up (i.e. after a call to `start()`).
      *
      * \returns a TaggedThreadID object that can be passed to job(), batch(), or add_timer() to
@@ -952,7 +952,7 @@ public:
      * Note that some internal jobs are counted as batch jobs: in particular timers added via
      * add_timer() are scheduled as batch jobs.
      *
-     * Cannot be called after start()ing the OxenMQ instance.
+     * Cannot be called after start()ing the SispopMQ instance.
      */
     void set_batch_threads(int threads);
 
@@ -964,7 +964,7 @@ public:
      *
      * Defaults to one-eighth of the number of configured general threads, rounded up.
      *
-     * Cannot be changed after start()ing the OxenMQ instance.
+     * Cannot be changed after start()ing the SispopMQ instance.
      */
     void set_reply_threads(int threads);
 
@@ -979,7 +979,7 @@ public:
      *
      * Defaults to `std::thread::hardware_concurrency()`.
      *
-     * Cannot be called after start()ing the OxenMQ instance.
+     * Cannot be called after start()ing the SispopMQ instance.
      */
     void set_general_threads(int threads);
 
@@ -1092,14 +1092,14 @@ public:
      * established or failed to establish.
      *
      * @param remote the remote connection address either as implicitly from a string or as a full
-     * oxenmq::address object; see address.h for details.  This specifies both the connection
+     * sispopmq::address object; see address.h for details.  This specifies both the connection
      * address and whether curve encryption should be used.
      * @param on_connect called with the identifier after the connection has been established.
      * @param on_failure called with the identifier and failure message if we fail to connect.
      * @param options supports various connection options:
      *        - passing an AuthLevel here sets the auth_level for incoming messages on this
      *          connection (instead of AuthLevel::none).
-     *        - anything else should be one of the `oxenmq::connect_option` structs.
+     *        - anything else should be one of the `sispopmq::connect_option` structs.
      *        - passing a std::chrono::duration type is permitted (but deprecated) for backwards
      *          compatibility; it is equivalent to `connection_option::timeout{duration}`.
      *
@@ -1114,7 +1114,7 @@ public:
     /// version also takes a pubkey (for a secure connection) as a separate argument.  Use of these
     /// is deprecated and discouraged: use an address with connect_option::whatever arguments
     /// instead.
-    [[deprecated("use connect_remote() with a oxenmq::address instead")]]
+    [[deprecated("use connect_remote() with a sispopmq::address instead")]]
     ConnectionID connect_remote(std::string_view remote, ConnectSuccess on_connect, ConnectFailure on_failure,
             AuthLevel auth_level = AuthLevel::none, std::chrono::milliseconds timeout = REMOTE_CONNECT_TIMEOUT);
 
@@ -1122,13 +1122,13 @@ public:
     /// encryption as separate arguments.  New code should either use a pubkey-embedded address
     /// string, or specify remote address and pubkey with an `address` object such as:
     ///     connect_remote(address{remote, pubkey}, ...)
-    [[deprecated("use connect_remote() with a oxenmq::address instead")]]
+    [[deprecated("use connect_remote() with a sispopmq::address instead")]]
     ConnectionID connect_remote(std::string_view remote, ConnectSuccess on_connect, ConnectFailure on_failure,
             std::string_view pubkey,
             AuthLevel auth_level = AuthLevel::none,
             std::chrono::milliseconds timeout = REMOTE_CONNECT_TIMEOUT);
 
-    /// Connects to the built-in in-process listening socket of this OxenMQ server for local
+    /// Connects to the built-in in-process listening socket of this SispopMQ server for local
     /// communication.  Note that auth_level defaults to admin (unlike connect_remote), and the
     /// default timeout is much shorter.
     ///
@@ -1156,7 +1156,7 @@ public:
 
     /**
      * Queue a message to be relayed to the given service node or remote without requiring a reply.
-     * OxenMQ will attempt to relay the message (first connecting and handshaking to the remote SN
+     * SispopMQ will attempt to relay the message (first connecting and handshaking to the remote SN
      * if not already connected).
      *
      * If a new connection is established it will have a relatively short (30s) idle timeout.  If
@@ -1228,10 +1228,10 @@ public:
     template <typename... T>
     void request(ConnectionID to, std::string_view cmd, ReplyCallback callback, const T&... opts);
 
-    /** Injects an external task into the oxenmq command queue.  This is used to allow connecting
-     * non-OxenMQ requests into the OxenMQ thread pool as if they were ordinary requests, to be
+    /** Injects an external task into the sispopmq command queue.  This is used to allow connecting
+     * non-SispopMQ requests into the SispopMQ thread pool as if they were ordinary requests, to be
      * scheduled as commands of an individual category.  For example, you might support rpc requests
-     * via OxenMQ as `rpc.some_command` and *also* accept them over HTTP.  Using `inject_task()`
+     * via SispopMQ as `rpc.some_command` and *also* accept them over HTTP.  Using `inject_task()`
      * allows you to handle processing the request in the same thread pool with the same priority as
      * `rpc.*` commands.
      *
@@ -1254,12 +1254,12 @@ public:
      */
     void inject_task(const std::string& category, std::string command, std::string remote, std::function<void()> callback);
 
-    /// The key pair this OxenMQ was created with; if empty keys were given during construction then
+    /// The key pair this SispopMQ was created with; if empty keys were given during construction then
     /// this returns the generated keys.
     const std::string& get_pubkey() const { return pubkey; }
     const std::string& get_privkey() const { return privkey; }
 
-    /** Updates (or initially sets) OxenMQ's list of service node pubkeys with the given list.
+    /** Updates (or initially sets) SispopMQ's list of service node pubkeys with the given list.
      *
      * This has two main effects:
      *
@@ -1282,7 +1282,7 @@ public:
 
     /** Updates the list of active pubkeys by adding or removing the given pubkeys from the existing
      * list.  This is more efficient when the incremental information is already available; if it
-     * isn't, simply call set_active_sns with a new list to have OxenMQ figure out what was added or
+     * isn't, simply call set_active_sns with a new list to have SispopMQ figure out what was added or
      * removed.
      *
      * \param added new pubkeys that were added since the last set_active_sns or update_active_sns
@@ -1297,7 +1297,7 @@ public:
     /**
      * Batches a set of jobs to be executed by workers, optionally followed by a completion function.
      *
-     * Must include oxenmq/batch.h to use.
+     * Must include sispopmq/batch.h to use.
      */
     template <typename R>
     void batch(Batch<R>&& batch);
@@ -1373,18 +1373,18 @@ public:
 ///     .add_request_command("b", ...)
 ///     ;
 class CatHelper {
-    OxenMQ& omq;
+    SispopMQ& omq;
     std::string cat;
 
 public:
-    CatHelper(OxenMQ& omq, std::string cat) : omq{omq}, cat{std::move(cat)} {}
+    CatHelper(SispopMQ& omq, std::string cat) : omq{omq}, cat{std::move(cat)} {}
 
-    CatHelper& add_command(std::string name, OxenMQ::CommandCallback callback) {
+    CatHelper& add_command(std::string name, SispopMQ::CommandCallback callback) {
         omq.add_command(cat, std::move(name), std::move(callback));
         return *this;
     }
 
-    CatHelper& add_request_command(std::string name, OxenMQ::CommandCallback callback) {
+    CatHelper& add_request_command(std::string name, SispopMQ::CommandCallback callback) {
         omq.add_request_command(cat, std::move(name), std::move(callback));
         return *this;
     }
@@ -1509,7 +1509,7 @@ struct queue_full {
 namespace connect_option {
 
 /// Specifies whether the connection should use pubkey-based routing for this connection, overriding
-/// the default (OxenMQ::EPHEMERAL_ROUTING_ID).  See OxenMQ::EPHEMERAL_ROUTING_ID for a description
+/// the default (SispopMQ::EPHEMERAL_ROUTING_ID).  See SispopMQ::EPHEMERAL_ROUTING_ID for a description
 /// of this.
 ///
 /// Typically use: `connect_option::ephemeral_routing_id{}` or `connect_option::ephemeral_routing_id{false}`.
@@ -1558,7 +1558,7 @@ struct hint {
 namespace detail {
 
 /// Takes an rvalue reference, moves it into a new instance then returns a uintptr_t value
-/// containing the pointer to be serialized to pass (via oxenmq queues) from one thread to another.
+/// containing the pointer to be serialized to pass (via sispopmq queues) from one thread to another.
 /// Must be matched with a deserializer_pointer on the other side to reconstitute the object and
 /// destroy the intermediate pointer.
 template <typename T>
@@ -1583,64 +1583,64 @@ template <typename T> T deserialize_object(uintptr_t ptrval) {
 void send_control(zmq::socket_t& sock, std::string_view cmd, std::string data = {});
 
 /// Base case: takes a string-like value and appends it to the message parts
-inline void apply_send_option(oxenc::bt_list& parts, oxenc::bt_dict&, std::string_view arg) {
+inline void apply_send_option(sispopc::bt_list& parts, sispopc::bt_dict&, std::string_view arg) {
     parts.emplace_back(arg);
 }
 
 /// std::optional<T>: if the optional is set, we unwrap it and apply as a send_option, otherwise we
 /// ignore it.
 template <typename T>
-inline void apply_send_option(oxenc::bt_list& parts, oxenc::bt_dict& control_data, const std::optional<T>& opt) {
+inline void apply_send_option(sispopc::bt_list& parts, sispopc::bt_dict& control_data, const std::optional<T>& opt) {
     if (opt) apply_send_option(parts, control_data, *opt);
 }
 
 /// `data_parts` specialization: appends a range of serialized data parts to the parts to send
 template <typename InputIt>
-void apply_send_option(oxenc::bt_list& parts, oxenc::bt_dict&, const send_option::data_parts_impl<InputIt> data) {
+void apply_send_option(sispopc::bt_list& parts, sispopc::bt_dict&, const send_option::data_parts_impl<InputIt> data) {
     for (auto it = data.begin; it != data.end; ++it)
         parts.emplace_back(*it);
 }
 
 /// `hint` specialization: sets the hint in the control data
-inline void apply_send_option(oxenc::bt_list&, oxenc::bt_dict& control_data, const send_option::hint& hint) {
+inline void apply_send_option(sispopc::bt_list&, sispopc::bt_dict& control_data, const send_option::hint& hint) {
     if (hint.connect_hint.empty()) return;
     control_data["hint"] = hint.connect_hint;
 }
 
 /// `optional` specialization: sets the optional flag in the control data
-inline void apply_send_option(oxenc::bt_list&, oxenc::bt_dict& control_data, const send_option::optional& o) {
+inline void apply_send_option(sispopc::bt_list&, sispopc::bt_dict& control_data, const send_option::optional& o) {
     control_data["optional"] = o.is_optional;
 }
 
 /// `incoming` specialization: sets the incoming-only flag in the control data
-inline void apply_send_option(oxenc::bt_list&, oxenc::bt_dict& control_data, const send_option::incoming& i) {
+inline void apply_send_option(sispopc::bt_list&, sispopc::bt_dict& control_data, const send_option::incoming& i) {
     control_data["incoming"] = i.is_incoming;
 }
 
 /// `outgoing` specialization: sets the outgoing-only flag in the control data
-inline void apply_send_option(oxenc::bt_list&, oxenc::bt_dict& control_data, const send_option::outgoing& o) {
+inline void apply_send_option(sispopc::bt_list&, sispopc::bt_dict& control_data, const send_option::outgoing& o) {
     control_data["outgoing"] = o.is_outgoing;
 }
 
 /// `keep_alive` specialization: increases the outgoing socket idle timeout (if shorter)
-inline void apply_send_option(oxenc::bt_list&, oxenc::bt_dict& control_data, const send_option::keep_alive& timeout) {
+inline void apply_send_option(sispopc::bt_list&, sispopc::bt_dict& control_data, const send_option::keep_alive& timeout) {
     if (timeout.time >= 0ms)
         control_data["keep_alive"] = timeout.time.count();
 }
 
 /// `request_timeout` specialization: set the timeout time for a request
-inline void apply_send_option(oxenc::bt_list&, oxenc::bt_dict& control_data, const send_option::request_timeout& timeout) {
+inline void apply_send_option(sispopc::bt_list&, sispopc::bt_dict& control_data, const send_option::request_timeout& timeout) {
     if (timeout.time >= 0ms)
         control_data["request_timeout"] = timeout.time.count();
 }
 
 /// `queue_failure` specialization
-inline void apply_send_option(oxenc::bt_list&, oxenc::bt_dict& control_data, send_option::queue_failure f) {
+inline void apply_send_option(sispopc::bt_list&, sispopc::bt_dict& control_data, send_option::queue_failure f) {
     control_data["send_fail"] = serialize_object(std::move(f.callback));
 }
 
 /// `queue_full` specialization
-inline void apply_send_option(oxenc::bt_list&, oxenc::bt_dict& control_data, send_option::queue_full f) {
+inline void apply_send_option(sispopc::bt_list&, sispopc::bt_dict& control_data, send_option::queue_full f) {
     control_data["send_full_q"] = serialize_object(std::move(f.callback));
 }
 
@@ -1648,9 +1648,9 @@ inline void apply_send_option(oxenc::bt_list&, oxenc::bt_dict& control_data, sen
 std::pair<std::string, AuthLevel> extract_metadata(zmq::message_t& msg);
 
 template <typename... T>
-oxenc::bt_dict build_send(ConnectionID to, std::string_view cmd, T&&... opts) {
-    oxenc::bt_dict control_data;
-    oxenc::bt_list parts{{cmd}};
+sispopc::bt_dict build_send(ConnectionID to, std::string_view cmd, T&&... opts) {
+    sispopc::bt_dict control_data;
+    sispopc::bt_list parts{{cmd}};
     (detail::apply_send_option(parts, control_data, std::forward<T>(opts)),...);
 
     if (to.sn())
@@ -1664,34 +1664,34 @@ oxenc::bt_dict build_send(ConnectionID to, std::string_view cmd, T&&... opts) {
 
 }
 
-inline void apply_connect_option(OxenMQ& omq, bool remote, oxenc::bt_dict& opts, const AuthLevel& auth) {
+inline void apply_connect_option(SispopMQ& omq, bool remote, sispopc::bt_dict& opts, const AuthLevel& auth) {
     if (remote) opts["auth_level"] = static_cast<std::underlying_type_t<AuthLevel>>(auth);
     else omq.log(LogLevel::warn, __FILE__, __LINE__, "AuthLevel ignored for connect_sn(...)");
 }
-inline void apply_connect_option(OxenMQ&, bool, oxenc::bt_dict& opts, const connect_option::ephemeral_routing_id& er) {
+inline void apply_connect_option(SispopMQ&, bool, sispopc::bt_dict& opts, const connect_option::ephemeral_routing_id& er) {
     opts["ephemeral_rid"] = er.use_ephemeral_routing_id;
 }
-inline void apply_connect_option(OxenMQ& omq, bool remote, oxenc::bt_dict& opts, const connect_option::timeout& timeout) {
+inline void apply_connect_option(SispopMQ& omq, bool remote, sispopc::bt_dict& opts, const connect_option::timeout& timeout) {
     if (remote) opts["timeout"] = timeout.time.count();
     else omq.log(LogLevel::warn, __FILE__, __LINE__, "connect_option::timeout ignored for connect_sn(...)");
 }
-inline void apply_connect_option(OxenMQ& omq, bool remote, oxenc::bt_dict& opts, const connect_option::keep_alive& ka) {
+inline void apply_connect_option(SispopMQ& omq, bool remote, sispopc::bt_dict& opts, const connect_option::keep_alive& ka) {
     if (ka.time < 0ms) return;
     else if (!remote) opts["keep_alive"] = ka.time.count();
     else omq.log(LogLevel::warn, __FILE__, __LINE__, "connect_option::keep_alive ignored for connect_remote(...)");
 }
-inline void apply_connect_option(OxenMQ& omq, bool remote, oxenc::bt_dict& opts, const connect_option::hint& hint) {
+inline void apply_connect_option(SispopMQ& omq, bool remote, sispopc::bt_dict& opts, const connect_option::hint& hint) {
     if (hint.address.empty()) return;
     if (!remote) opts["hint"] = hint.address;
     else omq.log(LogLevel::warn, __FILE__, __LINE__, "connect_option::hint ignored for connect_remote(...)");
 }
-[[deprecated("use oxenmq::connect_option::keep_alive or ::timeout instead")]]
-inline void apply_connect_option(OxenMQ&, bool remote, oxenc::bt_dict& opts, std::chrono::milliseconds time) {
+[[deprecated("use sispopmq::connect_option::keep_alive or ::timeout instead")]]
+inline void apply_connect_option(SispopMQ&, bool remote, sispopc::bt_dict& opts, std::chrono::milliseconds time) {
     if (remote) opts["timeout"] = time.count();
     else opts["keep_alive"] = time.count();
 }
-[[deprecated("use oxenmq::connect_option::hint{hint} instead of a direct string argument")]]
-inline void apply_connect_option(OxenMQ& omq, bool remote, oxenc::bt_dict& opts, std::string_view hint) {
+[[deprecated("use sispopmq::connect_option::hint{hint} instead of a direct string argument")]]
+inline void apply_connect_option(SispopMQ& omq, bool remote, sispopc::bt_dict& opts, std::string_view hint) {
     if (!remote) opts["hint"] = hint;
     else omq.log(LogLevel::warn, __FILE__, __LINE__, "string argument ignored for connect_remote(...)");
 }
@@ -1699,9 +1699,9 @@ inline void apply_connect_option(OxenMQ& omq, bool remote, oxenc::bt_dict& opts,
 } // namespace detail
 
 template <typename... Option>
-ConnectionID OxenMQ::connect_remote(const address& remote, ConnectSuccess on_connect, ConnectFailure on_failure,
+ConnectionID SispopMQ::connect_remote(const address& remote, ConnectSuccess on_connect, ConnectFailure on_failure,
             const Option&... options) {
-    oxenc::bt_dict opts;
+    sispopc::bt_dict opts;
     (detail::apply_connect_option(*this, true, opts, options), ...);
 
     auto id = next_conn_id++;
@@ -1711,14 +1711,14 @@ ConnectionID OxenMQ::connect_remote(const address& remote, ConnectSuccess on_con
     if (remote.curve()) opts["pubkey"] = remote.pubkey;
     opts["remote"] = remote.zmq_address();
 
-    detail::send_control(get_control_socket(), "CONNECT_REMOTE", oxenc::bt_serialize(opts));
+    detail::send_control(get_control_socket(), "CONNECT_REMOTE", sispopc::bt_serialize(opts));
 
     return id;
 }
 
 template <typename... Option>
-ConnectionID OxenMQ::connect_sn(std::string_view pubkey, const Option&... options) {
-    oxenc::bt_dict opts{
+ConnectionID SispopMQ::connect_sn(std::string_view pubkey, const Option&... options) {
+    sispopc::bt_dict opts{
         {"keep_alive", std::chrono::microseconds{DEFAULT_CONNECT_SN_KEEP_ALIVE}.count()},
         {"ephemeral_rid", EPHEMERAL_ROUTING_ID},
     };
@@ -1727,15 +1727,15 @@ ConnectionID OxenMQ::connect_sn(std::string_view pubkey, const Option&... option
 
     opts["pubkey"] = pubkey;
 
-    detail::send_control(get_control_socket(), "CONNECT_SN", oxenc::bt_serialize(opts));
+    detail::send_control(get_control_socket(), "CONNECT_SN", sispopc::bt_serialize(opts));
 
     return pubkey;
 }
 
 template <typename... Option>
-ConnectionID OxenMQ::connect_inproc(ConnectSuccess on_connect, ConnectFailure on_failure,
+ConnectionID SispopMQ::connect_inproc(ConnectSuccess on_connect, ConnectFailure on_failure,
             const Option&... options) {
-    oxenc::bt_dict opts{
+    sispopc::bt_dict opts{
         {"timeout", INPROC_CONNECT_TIMEOUT.count()},
         {"auth_level", static_cast<std::underlying_type_t<AuthLevel>>(AuthLevel::admin)}
     };
@@ -1748,62 +1748,62 @@ ConnectionID OxenMQ::connect_inproc(ConnectSuccess on_connect, ConnectFailure on
     opts["failure"] = detail::serialize_object(std::move(on_failure));
     opts["remote"] = "inproc://sn-self";
 
-    detail::send_control(get_control_socket(), "CONNECT_REMOTE", oxenc::bt_serialize(opts));
+    detail::send_control(get_control_socket(), "CONNECT_REMOTE", sispopc::bt_serialize(opts));
 
     return id;
 }
 
 template <typename... T>
-void OxenMQ::send(ConnectionID to, std::string_view cmd, const T&... opts) {
+void SispopMQ::send(ConnectionID to, std::string_view cmd, const T&... opts) {
     detail::send_control(get_control_socket(), "SEND",
-            oxenc::bt_serialize(detail::build_send(std::move(to), cmd, opts...)));
+            sispopc::bt_serialize(detail::build_send(std::move(to), cmd, opts...)));
 }
 
 std::string make_random_string(size_t size);
 
 template <typename... T>
-void OxenMQ::request(ConnectionID to, std::string_view cmd, ReplyCallback callback, const T &...opts) {
+void SispopMQ::request(ConnectionID to, std::string_view cmd, ReplyCallback callback, const T &...opts) {
     const auto reply_tag = make_random_string(15); // 15 random bytes is lots and should keep us in most stl implementations' small string optimization
-    oxenc::bt_dict control_data = detail::build_send(std::move(to), cmd, reply_tag, opts...);
+    sispopc::bt_dict control_data = detail::build_send(std::move(to), cmd, reply_tag, opts...);
     control_data["request"] = true;
     control_data["request_callback"] = detail::serialize_object(std::move(callback));
     control_data["request_tag"] = std::string_view{reply_tag};
-    detail::send_control(get_control_socket(), "SEND", oxenc::bt_serialize(std::move(control_data)));
+    detail::send_control(get_control_socket(), "SEND", sispopc::bt_serialize(std::move(control_data)));
 }
 
 template <typename... Args>
 void Message::send_back(std::string_view command, Args&&... args) {
-    oxenmq.send(conn, command, send_option::optional{!conn.sn()}, std::forward<Args>(args)...);
+    sispopmq.send(conn, command, send_option::optional{!conn.sn()}, std::forward<Args>(args)...);
 }
 template <typename... Args>
 void Message::DeferredSend::back(std::string_view command, Args&&... args) const {
-    oxenmq.send(conn, command, send_option::optional{!conn.sn()}, std::forward<Args>(args)...);
+    sispopmq.send(conn, command, send_option::optional{!conn.sn()}, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
 void Message::send_reply(Args&&... args) {
     assert(!reply_tag.empty());
-    oxenmq.send(conn, "REPLY", reply_tag, send_option::optional{!conn.sn()}, std::forward<Args>(args)...);
+    sispopmq.send(conn, "REPLY", reply_tag, send_option::optional{!conn.sn()}, std::forward<Args>(args)...);
 }
 template <typename... Args>
 void Message::DeferredSend::reply(Args&&... args) const {
     assert(!reply_tag.empty());
-    oxenmq.send(conn, "REPLY", reply_tag, send_option::optional{!conn.sn()}, std::forward<Args>(args)...);
+    sispopmq.send(conn, "REPLY", reply_tag, send_option::optional{!conn.sn()}, std::forward<Args>(args)...);
 }
 
 template <typename Callback, typename... Args>
 void Message::send_request(std::string_view cmd, Callback&& callback, Args&&... args) {
-    oxenmq.request(conn, cmd, std::forward<Callback>(callback),
+    sispopmq.request(conn, cmd, std::forward<Callback>(callback),
             send_option::optional{!conn.sn()}, std::forward<Args>(args)...);
 }
 template <typename Callback, typename... Args>
 void Message::DeferredSend::request(std::string_view cmd, Callback&& callback, Args&&... args) const {
-    oxenmq.request(conn, cmd, std::forward<Callback>(callback),
+    sispopmq.request(conn, cmd, std::forward<Callback>(callback),
             send_option::optional{!conn.sn()}, std::forward<Args>(args)...);
 }
 
 // When log messages are invoked we strip out anything before this in the filename:
-constexpr std::string_view LOG_PREFIX{"oxenmq/", 7};
+constexpr std::string_view LOG_PREFIX{"sispopmq/", 7};
 inline std::string_view trim_log_filename(std::string_view local_file) {
     auto chop = local_file.rfind(LOG_PREFIX);
     if (chop != local_file.npos)
@@ -1812,7 +1812,7 @@ inline std::string_view trim_log_filename(std::string_view local_file) {
 }
 
 template <typename... T>
-void OxenMQ::log(LogLevel lvl, const char* file, int line, const T&... stuff) {
+void SispopMQ::log(LogLevel lvl, const char* file, int line, const T&... stuff) {
     if (log_level() < lvl || !logger)
         return;
 
@@ -1823,6 +1823,6 @@ void OxenMQ::log(LogLevel lvl, const char* file, int line, const T&... stuff) {
 
 std::ostream &operator<<(std::ostream &os, LogLevel lvl);
 
-} // namespace oxenmq
+} // namespace sispopmq
 
 // vim:sw=4:et

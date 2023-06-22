@@ -16,89 +16,89 @@ cmake_minimum_required(VERSION 3.7)
 # Has to be set before `project()`, and ignored on non-macos:
 set(CMAKE_OSX_DEPLOYMENT_TARGET 10.12 CACHE STRING "macOS deployment target (Apple clang only)")
 
-project(liboxenmq
+project(libsispopmq
     VERSION 1.2.13
     LANGUAGES CXX C)
 
 include(GNUInstallDirs)
 
-message(STATUS "oxenmq v${PROJECT_VERSION}")
+message(STATUS "sispopmq v${PROJECT_VERSION}")
 
-set(OXENMQ_LIBVERSION 0)
+set(SISPOPMQ_LIBVERSION 0)
 
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    set(oxenmq_IS_TOPLEVEL_PROJECT TRUE)
+    set(sispopmq_IS_TOPLEVEL_PROJECT TRUE)
 else()
-    set(oxenmq_IS_TOPLEVEL_PROJECT FALSE)
+    set(sispopmq_IS_TOPLEVEL_PROJECT FALSE)
 endif()
 
 
 option(BUILD_SHARED_LIBS "Build shared libraries instead of static ones" ON)
-set(oxenmq_INSTALL_DEFAULT OFF)
-if(BUILD_SHARED_LIBS OR oxenmq_IS_TOPLEVEL_PROJECT)
-    set(oxenmq_INSTALL_DEFAULT ON)
+set(sispopmq_INSTALL_DEFAULT OFF)
+if(BUILD_SHARED_LIBS OR sispopmq_IS_TOPLEVEL_PROJECT)
+    set(sispopmq_INSTALL_DEFAULT ON)
 endif()
-option(OXENMQ_BUILD_TESTS "Building and perform oxenmq tests" ${oxenmq_IS_TOPLEVEL_PROJECT})
-option(OXENMQ_INSTALL "Add oxenmq libraries and headers to cmake install target; defaults to ON if BUILD_SHARED_LIBS is enabled or we are the top-level project; OFF for a static subdirectory build" ${oxenmq_INSTALL_DEFAULT})
-option(OXENMQ_INSTALL_CPPZMQ "Install cppzmq header with oxenmq/ headers (requires OXENMQ_INSTALL)" ON)
-option(OXENMQ_LOKIMQ_COMPAT "Install lokimq compatibility headers and pkg-config for rename migration" ON)
+option(SISPOPMQ_BUILD_TESTS "Building and perform sispopmq tests" ${sispopmq_IS_TOPLEVEL_PROJECT})
+option(SISPOPMQ_INSTALL "Add sispopmq libraries and headers to cmake install target; defaults to ON if BUILD_SHARED_LIBS is enabled or we are the top-level project; OFF for a static subdirectory build" ${sispopmq_INSTALL_DEFAULT})
+option(SISPOPMQ_INSTALL_CPPZMQ "Install cppzmq header with sispopmq/ headers (requires SISPOPMQ_INSTALL)" ON)
+option(SISPOPMQ_LOKIMQ_COMPAT "Install lokimq compatibility headers and pkg-config for rename migration" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-configure_file(oxenmq/version.h.in oxenmq/version.h @ONLY)
-configure_file(liboxenmq.pc.in liboxenmq.pc @ONLY)
-if(OXENMQ_LOKIMQ_COMPAT)
+configure_file(sispopmq/version.h.in sispopmq/version.h @ONLY)
+configure_file(libsispopmq.pc.in libsispopmq.pc @ONLY)
+if(SISPOPMQ_LOKIMQ_COMPAT)
     configure_file(liblokimq.pc.in liblokimq.pc @ONLY)
 endif()
 
 
-add_library(oxenmq
-    oxenmq/address.cpp
-    oxenmq/auth.cpp
-    oxenmq/connections.cpp
-    oxenmq/jobs.cpp
-    oxenmq/oxenmq.cpp
-    oxenmq/proxy.cpp
-    oxenmq/worker.cpp
+add_library(sispopmq
+    sispopmq/address.cpp
+    sispopmq/auth.cpp
+    sispopmq/connections.cpp
+    sispopmq/jobs.cpp
+    sispopmq/sispopmq.cpp
+    sispopmq/proxy.cpp
+    sispopmq/worker.cpp
 )
-set_target_properties(oxenmq PROPERTIES SOVERSION ${OXENMQ_LIBVERSION})
+set_target_properties(sispopmq PROPERTIES SOVERSION ${SISPOPMQ_LIBVERSION})
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-target_link_libraries(oxenmq PRIVATE Threads::Threads)
+target_link_libraries(sispopmq PRIVATE Threads::Threads)
 
 
-if(TARGET oxenc::oxenc)
-    add_library(_oxenmq_external_oxenc INTERFACE IMPORTED)
-    target_link_libraries(_oxenmq_external_oxenc INTERFACE oxenc::oxenc)
-    target_link_libraries(oxenmq PUBLIC _oxenmq_external_oxenc)
-    message(STATUS "using pre-existing oxenc::oxenc target")
+if(TARGET sispopc::sispopc)
+    add_library(_sispopmq_external_sispopc INTERFACE IMPORTED)
+    target_link_libraries(_sispopmq_external_sispopc INTERFACE sispopc::sispopc)
+    target_link_libraries(sispopmq PUBLIC _sispopmq_external_sispopc)
+    message(STATUS "using pre-existing sispopc::sispopc target")
 elseif(BUILD_SHARED_LIBS)
     include(FindPkgConfig)
-    pkg_check_modules(oxenc liboxenc IMPORTED_TARGET)
+    pkg_check_modules(sispopc libsispopc IMPORTED_TARGET)
 
-    if(oxenc_FOUND)
+    if(sispopc_FOUND)
         # Work around cmake bug 22180 (PkgConfig::tgt not set if no flags needed)
-        if(TARGET PkgConfig::oxenc OR CMAKE_VERSION VERSION_GREATER_EQUAL "3.21")
-            target_link_libraries(oxenmq PUBLIC PkgConfig::oxenc)
+        if(TARGET PkgConfig::sispopc OR CMAKE_VERSION VERSION_GREATER_EQUAL "3.21")
+            target_link_libraries(sispopmq PUBLIC PkgConfig::sispopc)
         endif()
     else()
-        add_subdirectory(oxen-encoding)
-        target_link_libraries(oxenmq PUBLIC oxenc::oxenc)
+        add_subdirectory(sispop-encoding)
+        target_link_libraries(sispopmq PUBLIC sispopc::sispopc)
     endif()
 else()
-    add_subdirectory(oxen-encoding)
-    target_link_libraries(oxenmq PUBLIC oxenc::oxenc)
+    add_subdirectory(sispop-encoding)
+    target_link_libraries(sispopmq PUBLIC sispopc::sispopc)
 endif()
 
 # libzmq is nearly impossible to link statically from a system-installed static library: it depends
 # on a ton of other libraries, some of which are not all statically available.  If the caller wants
 # to mess with this, so be it: they can set up a libzmq target and we'll use it.  Otherwise if they
 # asked us to do things statically, don't even try to find a system lib and just build it.
-set(oxenmq_build_static_libzmq OFF)
+set(sispopmq_build_static_libzmq OFF)
 if(TARGET libzmq)
-    target_link_libraries(oxenmq PUBLIC libzmq)
+    target_link_libraries(sispopmq PUBLIC libzmq)
 elseif(BUILD_SHARED_LIBS)
     include(FindPkgConfig)
     pkg_check_modules(libzmq libzmq>=4.3 IMPORTED_TARGET)
@@ -114,36 +114,36 @@ elseif(BUILD_SHARED_LIBS)
           set_property(TARGET PkgConfig::libzmq PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${zmq_inc})
         endif()
 
-        target_link_libraries(oxenmq PUBLIC PkgConfig::libzmq)
+        target_link_libraries(sispopmq PUBLIC PkgConfig::libzmq)
     else()
-        set(oxenmq_build_static_libzmq ON)
+        set(sispopmq_build_static_libzmq ON)
     endif()
 else()
-    set(oxenmq_build_static_libzmq ON)
+    set(sispopmq_build_static_libzmq ON)
 endif()
 
-if(oxenmq_build_static_libzmq)
+if(sispopmq_build_static_libzmq)
     message(STATUS "libzmq >= 4.3 not found or static build requested, building bundled version")
     list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/local-libzmq")
     include(LocalLibzmq)
-    target_link_libraries(oxenmq PUBLIC libzmq_vendor)
+    target_link_libraries(sispopmq PUBLIC libzmq_vendor)
 endif()
 
-target_include_directories(oxenmq
+target_include_directories(sispopmq
     PUBLIC
         $<INSTALL_INTERFACE:>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cppzmq>
 )
 
-target_compile_options(oxenmq PRIVATE -Wall -Wextra)
+target_compile_options(sispopmq PRIVATE -Wall -Wextra)
 
 option(WARNINGS_AS_ERRORS "treat all warnings as errors" ON)
 if(WARNINGS_AS_ERRORS)
-    target_compile_options(oxenmq PRIVATE -Werror)
+    target_compile_options(sispopmq PRIVATE -Werror)
 endif()
 
-set_target_properties(oxenmq PROPERTIES
+set_target_properties(sispopmq PROPERTIES
     POSITION_INDEPENDENT_CODE ON
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
@@ -162,8 +162,8 @@ endfunction()
 # If the caller has already set up a sodium target then we will just link to it, otherwise we go
 # looking for it.
 if(TARGET sodium)
-    target_link_libraries(oxenmq PUBLIC sodium)
-    if(oxenmq_build_static_libzmq)
+    target_link_libraries(sispopmq PUBLIC sodium)
+    if(sispopmq_build_static_libzmq)
         target_link_libraries(libzmq_vendor INTERFACE sodium)
     endif()
 else()
@@ -171,70 +171,70 @@ else()
     pkg_check_modules(sodium REQUIRED libsodium IMPORTED_TARGET)
 
     if(BUILD_SHARED_LIBS)
-        target_link_libraries(oxenmq PUBLIC PkgConfig::sodium)
-        if(oxenmq_build_static_libzmq)
+        target_link_libraries(sispopmq PUBLIC PkgConfig::sodium)
+        if(sispopmq_build_static_libzmq)
             target_link_libraries(libzmq_vendor INTERFACE PkgConfig::sodium)
         endif()
     else()
-        link_dep_libs(oxenmq PUBLIC "${sodium_STATIC_LIBRARY_DIRS}" ${sodium_STATIC_LIBRARIES})
-        target_include_directories(oxenmq PUBLIC ${sodium_STATIC_INCLUDE_DIRS})
-        if(oxenmq_build_static_libzmq)
+        link_dep_libs(sispopmq PUBLIC "${sodium_STATIC_LIBRARY_DIRS}" ${sodium_STATIC_LIBRARIES})
+        target_include_directories(sispopmq PUBLIC ${sodium_STATIC_INCLUDE_DIRS})
+        if(sispopmq_build_static_libzmq)
             link_dep_libs(libzmq_vendor INTERFACE "${sodium_STATIC_LIBRARY_DIRS}" ${sodium_STATIC_LIBRARIES})
             target_link_libraries(libzmq_vendor INTERFACE ${sodium_STATIC_INCLUDE_DIRS})
         endif()
     endif()
 endif()
 
-add_library(oxenmq::oxenmq ALIAS oxenmq)
-if(OXENMQ_LOKIMQ_COMPAT)
-    add_library(lokimq::lokimq ALIAS oxenmq)
+add_library(sispopmq::sispopmq ALIAS sispopmq)
+if(SISPOPMQ_LOKIMQ_COMPAT)
+    add_library(lokimq::lokimq ALIAS sispopmq)
 endif()
 
 export(
-    TARGETS oxenmq
-    NAMESPACE oxenmq::
-    FILE oxenmqTargets.cmake
+    TARGETS sispopmq
+    NAMESPACE sispopmq::
+    FILE sispopmqTargets.cmake
 )
 
-if(OXENMQ_INSTALL)
+if(SISPOPMQ_INSTALL)
     install(
-        TARGETS oxenmq
-        EXPORT oxenmqConfig
+        TARGETS sispopmq
+        EXPORT sispopmqConfig
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
         )
 
     install(
-        FILES oxenmq/address.h
-        oxenmq/auth.h
-        oxenmq/base32z.h
-        oxenmq/base64.h
-        oxenmq/batch.h
-        oxenmq/bt_serialize.h
-        oxenmq/bt_value.h
-        oxenmq/connections.h
-        oxenmq/fmt.h
-        oxenmq/hex.h
-        oxenmq/oxenmq.h
-        oxenmq/message.h
-        oxenmq/variant.h
-        ${CMAKE_CURRENT_BINARY_DIR}/oxenmq/version.h
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/oxenmq
+        FILES sispopmq/address.h
+        sispopmq/auth.h
+        sispopmq/base32z.h
+        sispopmq/base64.h
+        sispopmq/batch.h
+        sispopmq/bt_serialize.h
+        sispopmq/bt_value.h
+        sispopmq/connections.h
+        sispopmq/fmt.h
+        sispopmq/hex.h
+        sispopmq/sispopmq.h
+        sispopmq/message.h
+        sispopmq/variant.h
+        ${CMAKE_CURRENT_BINARY_DIR}/sispopmq/version.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sispopmq
         )
 
-    if(OXENMQ_INSTALL_CPPZMQ)
+    if(SISPOPMQ_INSTALL_CPPZMQ)
         install(
             FILES cppzmq/zmq.hpp
-            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/oxenmq
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sispopmq
             )
     endif()
 
 
     install(
-        FILES ${CMAKE_CURRENT_BINARY_DIR}/liboxenmq.pc
+        FILES ${CMAKE_CURRENT_BINARY_DIR}/libsispopmq.pc
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
     )
 
-    if(OXENMQ_LOKIMQ_COMPAT)
+    if(SISPOPMQ_LOKIMQ_COMPAT)
         install(
             FILES lokimq/address.h
             lokimq/auth.h
@@ -261,6 +261,6 @@ if(OXENMQ_INSTALL)
 
 endif()
 
-if(OXENMQ_BUILD_TESTS)
+if(SISPOPMQ_BUILD_TESTS)
     add_subdirectory(tests)
 endif()

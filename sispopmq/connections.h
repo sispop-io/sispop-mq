@@ -1,6 +1,6 @@
 #pragma once
 #include "auth.h"
-#include <oxenc/bt_value.h>
+#include <sispopc/bt_value.h>
 #include <string_view>
 #include <iosfwd>
 #include <stdexcept>
@@ -8,13 +8,13 @@
 #include <utility>
 #include <variant>
 
-namespace oxenmq {
+namespace sispopmq {
 
 struct ConnectionID;
 
 namespace detail {
 template <typename... T>
-oxenc::bt_dict build_send(ConnectionID to, std::string_view cmd, T&&... opts);
+sispopc::bt_dict build_send(ConnectionID to, std::string_view cmd, T&&... opts);
 }
 
 /// Opaque data structure representing a connection which supports ==, !=, < and std::hash.  For
@@ -80,18 +80,18 @@ private:
     int64_t id = 0;
     std::string pk;
     std::string route;
-    friend class OxenMQ;
+    friend class SispopMQ;
     friend struct std::hash<ConnectionID>;
     template <typename... T>
-    friend oxenc::bt_dict detail::build_send(ConnectionID to, std::string_view cmd, T&&... opts);
+    friend sispopc::bt_dict detail::build_send(ConnectionID to, std::string_view cmd, T&&... opts);
     friend std::ostream& operator<<(std::ostream& o, const ConnectionID& conn);
 };
 
-} // namespace oxenmq
+} // namespace sispopmq
 namespace std {
-    template <> struct hash<oxenmq::ConnectionID> {
-        size_t operator()(const oxenmq::ConnectionID &c) const {
-            return c.sn() ? oxenmq::already_hashed{}(c.pk) :
+    template <> struct hash<sispopmq::ConnectionID> {
+        size_t operator()(const sispopmq::ConnectionID &c) const {
+            return c.sn() ? sispopmq::already_hashed{}(c.pk) :
                 std::hash<int64_t>{}(c.id) + std::hash<std::string>{}(c.route);
         }
     };

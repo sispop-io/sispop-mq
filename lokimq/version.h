@@ -1,4 +1,4 @@
 #pragma once
-#include "../oxenmq/version.h"
+#include "../sispopmq/version.h"
 
-namespace lokimq = oxenmq;
+namespace lokimq = sispopmq;

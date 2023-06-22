@@ -1,9 +1,9 @@
 #pragma once
-#include "oxenmq/oxenmq.h"
+#include "sispopmq/sispopmq.h"
 #include <catch2/catch.hpp>
 #include <chrono>
 
-using namespace oxenmq;
+using namespace sispopmq;
 
 // Apple's mutexes, thread scheduling, and IO handling are garbage and it shows up with lots of
 // spurious failures in this test suite (because it expects a system to not suck that badly), so we
@@ -55,7 +55,7 @@ inline void wait_for_conn(std::atomic<bool> &c) {
 /// Waits enough time for us to receive a reply from a localhost remote.
 inline void reply_sleep() { std::this_thread::sleep_for(10ms * TIME_DILATION); }
 
-inline OxenMQ::Logger get_logger(std::string prefix = "") {
+inline SispopMQ::Logger get_logger(std::string prefix = "") {
     std::string me = "tests/common.h";
     std::string strip = __FILE__;
     if (strip.substr(strip.size() - me.size()) == me)

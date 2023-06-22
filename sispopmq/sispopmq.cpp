@@ -1,5 +1,5 @@
-#include "oxenmq.h"
-#include "oxenmq-internal.h"
+#include "sispopmq.h"
+#include "sispopmq-internal.h"
 #include "zmq.hpp"
 #include <map>
 #include <mutex>
@@ -13,17 +13,17 @@ extern "C" {
 #include <sodium/crypto_box.h>
 #include <sodium/crypto_scalarmult.h>
 }
-#include <oxenc/hex.h>
-#include <oxenc/variant.h>
+#include <sispopc/hex.h>
+#include <sispopc/variant.h>
 
-namespace oxenmq {
+namespace sispopmq {
 
 namespace {
 
 
 /// Creates a message by bt-serializing the given value (string, number, list, or dict)
 template <typename T>
-zmq::message_t create_bt_message(T&& data) { return create_message(oxenc::bt_serialize(std::forward<T>(data))); }
+zmq::message_t create_bt_message(T&& data) { return create_message(sispopc::bt_serialize(std::forward<T>(data))); }
 
 template <typename MessageContainer>
 std::vector<std::string> as_strings(const MessageContainer& msgs) {
@@ -64,9 +64,9 @@ std::pair<std::string, AuthLevel> extract_metadata(zmq::message_t& msg) {
         std::string_view pubkey_hex{msg.gets("User-Id")};
         if (pubkey_hex.size() != 64)
             throw std::logic_error("bad user-id");
-        assert(oxenc::is_hex(pubkey_hex.begin(), pubkey_hex.end()));
+        assert(sispopc::is_hex(pubkey_hex.begin(), pubkey_hex.end()));
         result.first.resize(32, 0);
-        oxenc::from_hex(pubkey_hex.begin(), pubkey_hex.end(), result.first.begin());
+        sispopc::from_hex(pubkey_hex.begin(), pubkey_hex.end(), result.first.begin());
     } catch (...) {}
 
     try {
@@ -79,20 +79,20 @@ std::pair<std::string, AuthLevel> extract_metadata(zmq::message_t& msg) {
 
 } // namespace detail
 
-void OxenMQ::set_zmq_context_option(zmq::ctxopt option, int value) {
+void SispopMQ::set_zmq_context_option(zmq::ctxopt option, int value) {
     context.set(option, value);
 }
 
-void OxenMQ::log_level(LogLevel level) {
+void SispopMQ::log_level(LogLevel level) {
     log_lvl.store(level, std::memory_order_relaxed);
 }
 
-LogLevel OxenMQ::log_level() const {
+LogLevel SispopMQ::log_level() const {
     return log_lvl.load(std::memory_order_relaxed);
 }
 
 
-CatHelper OxenMQ::add_category(std::string name, Access access_level, unsigned int reserved_threads, int max_queue) {
+CatHelper SispopMQ::add_category(std::string name, Access access_level, unsigned int reserved_threads, int max_queue) {
     check_not_started(proxy_thread, "add a category");
 
     if (name.size() > MAX_CATEGORY_LENGTH)
@@ -110,7 +110,7 @@ CatHelper OxenMQ::add_category(std::string name, Access access_level, unsigned i
     return ret;
 }
 
-void OxenMQ::add_command(const std::string& category, std::string name, CommandCallback callback) {
+void SispopMQ::add_command(const std::string& category, std::string name, CommandCallback callback) {
     check_not_started(proxy_thread, "add a command");
 
     if (name.size() > MAX_COMMAND_LENGTH)
@@ -129,12 +129,12 @@ void OxenMQ::add_command(const std::string& category, std::string name, CommandC
         throw std::runtime_error("Cannot add command `" + fullname + "': that command already exists");
 }
 
-void OxenMQ::add_request_command(const std::string& category, std::string name, CommandCallback callback) {
+void SispopMQ::add_request_command(const std::string& category, std::string name, CommandCallback callback) {
     add_command(category, name, std::move(callback));
     categories.at(category).commands.at(name).second = true;
 }
 
-void OxenMQ::add_command_alias(std::string from, std::string to) {
+void SispopMQ::add_command_alias(std::string from, std::string to) {
     check_not_started(proxy_thread, "add a command alias");
 
     if (from.empty())
@@ -163,10 +163,10 @@ std::atomic<int> next_id{1};
 /// Accesses a thread-local command socket connected to the proxy's command socket used to issue
 /// commands in a thread-safe manner.  A mutex is only required here the first time a thread
 /// accesses the control socket.
-zmq::socket_t& OxenMQ::get_control_socket() {
+zmq::socket_t& SispopMQ::get_control_socket() {
     assert(proxy_thread.joinable());
 
-    // Optimize by caching the last value; OxenMQ is often a singleton and in that case we're
+    // Optimize by caching the last value; SispopMQ is often a singleton and in that case we're
     // going to *always* hit this optimization.  Even if it isn't, we're probably likely to need the
     // same control socket from the same thread multiple times sequentially so this may still help.
     static thread_local int last_id = -1;
@@ -177,7 +177,7 @@ zmq::socket_t& OxenMQ::get_control_socket() {
     std::lock_guard lock{control_sockets_mutex};
 
     if (proxy_shutting_down)
-        throw std::runtime_error("Unable to obtain OxenMQ control socket: proxy thread is shutting down");
+        throw std::runtime_error("Unable to obtain SispopMQ control socket: proxy thread is shutting down");
 
     auto& socket = control_sockets[std::this_thread::get_id()];
     if (!socket) {
@@ -191,7 +191,7 @@ zmq::socket_t& OxenMQ::get_control_socket() {
 }
 
 
-OxenMQ::OxenMQ(
+SispopMQ::SispopMQ(
         std::string pubkey_,
         std::string privkey_,
         bool service_node,
@@ -202,17 +202,17 @@ OxenMQ::OxenMQ(
         sn_lookup{std::move(lookup)}, log_lvl{level}, logger{std::move(logger)}
 {
 
-    OMQ_TRACE("Constructing OxenMQ, id=", object_id, ", this=", this);
+    OMQ_TRACE("Constructing SispopMQ, id=", object_id, ", this=", this);
 
     if (sodium_init() == -1)
         throw std::runtime_error{"libsodium initialization failed"};
 
     if (pubkey.empty() != privkey.empty()) {
-        throw std::invalid_argument("OxenMQ construction failed: one (and only one) of pubkey/privkey is empty. Both must be specified, or both empty to generate a key.");
+        throw std::invalid_argument("SispopMQ construction failed: one (and only one) of pubkey/privkey is empty. Both must be specified, or both empty to generate a key.");
     } else if (pubkey.empty()) {
         if (service_node)
-            throw std::invalid_argument("Cannot construct a service node mode OxenMQ without a keypair");
-        OMQ_LOG(debug, "generating x25519 keypair for remote-only OxenMQ instance");
+            throw std::invalid_argument("Cannot construct a service node mode SispopMQ without a keypair");
+        OMQ_LOG(debug, "generating x25519 keypair for remote-only SispopMQ instance");
         pubkey.resize(crypto_box_PUBLICKEYBYTES);
         privkey.resize(crypto_box_SECRETKEYBYTES);
         crypto_box_keypair(reinterpret_cast<unsigned char*>(&pubkey[0]), reinterpret_cast<unsigned char*>(&privkey[0]));
@@ -227,15 +227,15 @@ OxenMQ::OxenMQ(
         std::string verify_pubkey(crypto_box_PUBLICKEYBYTES, 0);
         crypto_scalarmult_base(reinterpret_cast<unsigned char*>(&verify_pubkey[0]), reinterpret_cast<unsigned char*>(&privkey[0]));
         if (verify_pubkey != pubkey)
-            throw std::invalid_argument("Invalid pubkey/privkey values given to OxenMQ construction: pubkey verification failed");
+            throw std::invalid_argument("Invalid pubkey/privkey values given to SispopMQ construction: pubkey verification failed");
     }
 }
 
-void OxenMQ::start() {
+void SispopMQ::start() {
     if (proxy_thread.joinable())
         throw std::logic_error("Cannot call start() multiple times!");
 
-    OMQ_LOG(info, "Initializing OxenMQ ", bind.empty() ? "remote-only" : "listener", " with pubkey ", oxenc::to_hex(pubkey));
+    OMQ_LOG(info, "Initializing SispopMQ ", bind.empty() ? "remote-only" : "listener", " with pubkey ", sispopc::to_hex(pubkey));
 
     assert(general_workers > 0);
     if (batch_jobs_reserved < 0)
@@ -276,7 +276,7 @@ void OxenMQ::start() {
     command.bind(SN_ADDR_COMMAND);
     std::promise<void> startup_prom;
     auto proxy_startup = startup_prom.get_future();
-    proxy_thread = std::thread{&OxenMQ::proxy_loop, this, std::move(startup_prom)};
+    proxy_thread = std::thread{&SispopMQ::proxy_loop, this, std::move(startup_prom)};
 
     OMQ_LOG(debug, "Waiting for proxy thread to initialize...");
     proxy_startup.get(); // Rethrows exceptions from the proxy startup (e.g. failure to bind)
@@ -289,37 +289,37 @@ void OxenMQ::start() {
     zmq::message_t ready_msg;
     std::vector<zmq::message_t> parts;
     try { recv_message_parts(control, parts); }
-    catch (const zmq::error_t &e) { throw std::runtime_error("Failure reading from OxenMQ::Proxy thread: "s + e.what()); }
+    catch (const zmq::error_t &e) { throw std::runtime_error("Failure reading from SispopMQ::Proxy thread: "s + e.what()); }
 
     if (!(parts.size() == 1 && view(parts.front()) == "READY"))
         throw std::runtime_error("Invalid startup message from proxy thread (didn't get expected READY message)");
     OMQ_LOG(debug, "Proxy thread is ready");
 }
 
-void OxenMQ::listen_curve(std::string bind_addr, AllowFunc allow_connection, std::function<void(bool)> on_bind) {
+void SispopMQ::listen_curve(std::string bind_addr, AllowFunc allow_connection, std::function<void(bool)> on_bind) {
     if (std::string_view{bind_addr}.substr(0, 9) == "inproc://")
         throw std::logic_error{"inproc:// cannot be used with listen_curve"};
     if (!allow_connection) allow_connection = [](auto&&...) { return AuthLevel::none; };
     bind_data d{std::move(bind_addr), true, std::move(allow_connection), std::move(on_bind)};
     if (proxy_thread.joinable())
-        detail::send_control(get_control_socket(), "BIND", oxenc::bt_serialize(detail::serialize_object(std::move(d))));
+        detail::send_control(get_control_socket(), "BIND", sispopc::bt_serialize(detail::serialize_object(std::move(d))));
     else
         bind.push_back(std::move(d));
 }
 
-void OxenMQ::listen_plain(std::string bind_addr, AllowFunc allow_connection, std::function<void(bool)> on_bind) {
+void SispopMQ::listen_plain(std::string bind_addr, AllowFunc allow_connection, std::function<void(bool)> on_bind) {
     if (std::string_view{bind_addr}.substr(0, 9) == "inproc://")
         throw std::logic_error{"inproc:// cannot be used with listen_plain"};
     if (!allow_connection) allow_connection = [](auto&&...) { return AuthLevel::none; };
     bind_data d{std::move(bind_addr), false, std::move(allow_connection), std::move(on_bind)};
     if (proxy_thread.joinable())
-        detail::send_control(get_control_socket(), "BIND", oxenc::bt_serialize(detail::serialize_object(std::move(d))));
+        detail::send_control(get_control_socket(), "BIND", sispopc::bt_serialize(detail::serialize_object(std::move(d))));
     else
         bind.push_back(std::move(d));
 }
 
 
-std::pair<OxenMQ::category*, const std::pair<OxenMQ::CommandCallback, bool>*> OxenMQ::get_command(std::string& command) {
+std::pair<SispopMQ::category*, const std::pair<SispopMQ::CommandCallback, bool>*> SispopMQ::get_command(std::string& command) {
     if (command.size() > MAX_CATEGORY_LENGTH + 1 + MAX_COMMAND_LENGTH) {
         OMQ_LOG(warn, "Invalid command '", command, "': command too long");
         return {};
@@ -355,7 +355,7 @@ std::pair<OxenMQ::category*, const std::pair<OxenMQ::CommandCallback, bool>*> Ox
     return {&catit->second, &callback_it->second};
 }
 
-void OxenMQ::set_batch_threads(int threads) {
+void SispopMQ::set_batch_threads(int threads) {
     if (proxy_thread.joinable())
         throw std::logic_error("Cannot change reserved batch threads after calling `start()`");
     if (threads < -1) // -1 is the default which is based on general threads
@@ -363,7 +363,7 @@ void OxenMQ::set_batch_threads(int threads) {
     batch_jobs_reserved = threads;
 }
 
-void OxenMQ::set_reply_threads(int threads) {
+void SispopMQ::set_reply_threads(int threads) {
     if (proxy_thread.joinable())
         throw std::logic_error("Cannot change reserved reply threads after calling `start()`");
     if (threads < -1) // -1 is the default which is based on general threads
@@ -371,7 +371,7 @@ void OxenMQ::set_reply_threads(int threads) {
     reply_jobs_reserved = threads;
 }
 
-void OxenMQ::set_general_threads(int threads) {
+void SispopMQ::set_general_threads(int threads) {
     if (proxy_thread.joinable())
         throw std::logic_error("Cannot change general thread count after calling `start()`");
     if (threads < 1)
@@ -379,7 +379,7 @@ void OxenMQ::set_general_threads(int threads) {
     general_workers = threads;
 }
 
-OxenMQ::run_info& OxenMQ::run_info::load(category* cat_, std::string command_, ConnectionID conn_, Access access_, std::string remote_,
+SispopMQ::run_info& SispopMQ::run_info::load(category* cat_, std::string command_, ConnectionID conn_, Access access_, std::string remote_,
                 std::vector<zmq::message_t> data_parts_, const std::pair<CommandCallback, bool>* callback_) {
     reset();
     cat = cat_;
@@ -392,7 +392,7 @@ OxenMQ::run_info& OxenMQ::run_info::load(category* cat_, std::string command_, C
     return *this;
 }
 
-OxenMQ::run_info& OxenMQ::run_info::load(category* cat_, std::string command_, std::string remote_, std::function<void()> callback) {
+SispopMQ::run_info& SispopMQ::run_info::load(category* cat_, std::string command_, std::string remote_, std::function<void()> callback) {
     reset();
     is_injected = true;
     cat = cat_;
@@ -404,7 +404,7 @@ OxenMQ::run_info& OxenMQ::run_info::load(category* cat_, std::string command_, s
     return *this;
 }
 
-OxenMQ::run_info& OxenMQ::run_info::load(pending_command&& pending) {
+SispopMQ::run_info& SispopMQ::run_info::load(pending_command&& pending) {
     if (auto *f = std::get_if<std::function<void()>>(&pending.callback))
         return load(&pending.cat, std::move(pending.command), std::move(pending.remote), std::move(*f));
 
@@ -413,7 +413,7 @@ OxenMQ::run_info& OxenMQ::run_info::load(pending_command&& pending) {
             std::move(pending.remote), std::move(pending.data_parts), var::get<0>(pending.callback));
 }
 
-OxenMQ::run_info& OxenMQ::run_info::load(batch_job&& bj, bool reply_job, int tagged_thread) {
+SispopMQ::run_info& SispopMQ::run_info::load(batch_job&& bj, bool reply_job, int tagged_thread) {
     reset();
     is_batch_job = true;
     is_reply_job = reply_job;
@@ -424,7 +424,7 @@ OxenMQ::run_info& OxenMQ::run_info::load(batch_job&& bj, bool reply_job, int tag
 }
 
 
-OxenMQ::~OxenMQ() {
+SispopMQ::~SispopMQ() {
     if (!proxy_thread.joinable()) {
         if (!tagged_workers.empty()) {
             // We have tagged workers that are waiting on a signal for startup, but we didn't start
@@ -441,10 +441,10 @@ OxenMQ::~OxenMQ() {
         return;
     }
 
-    OMQ_LOG(info, "OxenMQ shutting down proxy thread");
+    OMQ_LOG(info, "SispopMQ shutting down proxy thread");
     detail::send_control(get_control_socket(), "QUIT");
     proxy_thread.join();
-    OMQ_LOG(info, "OxenMQ proxy thread has stopped");
+    OMQ_LOG(info, "SispopMQ proxy thread has stopped");
 }
 
 std::ostream &operator<<(std::ostream &os, LogLevel lvl) {
@@ -468,5 +468,5 @@ std::string make_random_string(size_t size) {
     return rando;
 }
 
-} // namespace oxenmq
+} // namespace sispopmq
 // vim:sw=4:et

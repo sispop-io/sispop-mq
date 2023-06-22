@@ -28,19 +28,19 @@
 
 #pragma once
 
-// Compatibility shim for oxenc includes
+// Compatibility shim for sispopc includes
 
-#include <oxenc/base64.h>
+#include <sispopc/base64.h>
 
-namespace oxenmq {
+namespace sispopmq {
 
-using oxenc::to_base64_size;
-using oxenc::from_base64_size;
-using oxenc::base64_encoder;
-using oxenc::to_base64;
-using oxenc::to_base64_unpadded;
-using oxenc::is_base64;
-using oxenc::base64_decoder;
-using oxenc::from_base64;
+using sispopc::to_base64_size;
+using sispopc::from_base64_size;
+using sispopc::base64_encoder;
+using sispopc::to_base64;
+using sispopc::to_base64_unpadded;
+using sispopc::is_base64;
+using sispopc::base64_decoder;
+using sispopc::from_base64;
 
 }
