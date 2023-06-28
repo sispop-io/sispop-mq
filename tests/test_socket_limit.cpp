@@ -1,13 +1,13 @@
 #include "common.h"
-#include <oxenc/hex.h>
+#include <sispopc/hex.h>
 
-using namespace oxenmq;
+using namespace sispopmq;
 
 TEST_CASE("zmq socket limit", "[zmq][socket-limit]") {
     // Make sure setting .MAX_SOCKETS works as expected.  (This test was added when a bug was fixed
     // that was causing it not to be applied).
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -16,7 +16,7 @@ TEST_CASE("zmq socket limit", "[zmq][socket-limit]") {
     server.start();
 
     std::atomic<int> failed = 0, good = 0, failed_toomany = 0;
-    OxenMQ client;
+    SispopMQ client;
     client.MAX_SOCKETS = 15;
     client.start();
 

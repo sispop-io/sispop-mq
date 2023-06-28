@@ -1,6 +1,6 @@
-local docker_base = 'registry.oxen.rocks/lokinet-ci-';
+local docker_base = 'registry.sispop.rocks/lokinet-ci-';
 
-local default_deps_nocxx = ['libsodium-dev', 'libzmq3-dev', 'liboxenc-dev'];
+local default_deps_nocxx = ['libsodium-dev', 'libzmq3-dev', 'libsispopc-dev'];
 
 local submodule_commands = ['git fetch --tags', 'git submodule update --init --recursive --depth=1'];
 
@@ -39,8 +39,8 @@ local debian_pipeline(name,
         apt_get_quiet + 'update',
         apt_get_quiet + 'install -y eatmydata',
         'eatmydata ' + apt_get_quiet + ' install --no-install-recommends -y lsb-release',
-        'cp contrib/deb.oxen.io.gpg /etc/apt/trusted.gpg.d',
-        'echo deb http://deb.oxen.io ' + distro + ' main >/etc/apt/sources.list.d/oxen.list',
+        'cp contrib/deb.sispop.io.gpg /etc/apt/trusted.gpg.d',
+        'echo deb http://deb.sispop.io ' + distro + ' main >/etc/apt/sources.list.d/sispop.list',
         'eatmydata ' + apt_get_quiet + ' update',
         'eatmydata ' + apt_get_quiet + 'dist-upgrade -y',
         'eatmydata ' + apt_get_quiet + 'install -y cmake git ninja-build pkg-config ccache ' + std.join(' ', deps),

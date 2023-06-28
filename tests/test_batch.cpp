@@ -1,4 +1,4 @@
-#include "oxenmq/batch.h"
+#include "sispopmq/batch.h"
 #include "common.h"
 #include <future>
 
@@ -12,7 +12,7 @@ double do_my_task(int input) {
 
 std::promise<std::pair<double, int>> done;
 
-void continue_big_task(std::vector<oxenmq::job_result<double>> results) {
+void continue_big_task(std::vector<sispopmq::job_result<double>> results) {
     double sum = 0;
     int exc_count = 0;
     for (auto& r : results) {
@@ -25,10 +25,10 @@ void continue_big_task(std::vector<oxenmq::job_result<double>> results) {
     done.set_value({sum, exc_count});
 }
 
-void start_big_task(oxenmq::OxenMQ& omq) {
+void start_big_task(sispopmq::SispopMQ& omq) {
     size_t num_jobs = 32;
 
-    oxenmq::Batch<double /*return type*/> batch;
+    sispopmq::Batch<double /*return type*/> batch;
     batch.reserve(num_jobs);
 
     for (size_t i = 0; i < num_jobs; i++)
@@ -41,7 +41,7 @@ void start_big_task(oxenmq::OxenMQ& omq) {
 
 
 TEST_CASE("batching many small jobs", "[batch-many]") {
-    oxenmq::OxenMQ omq{
+    sispopmq::SispopMQ omq{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -58,7 +58,7 @@ TEST_CASE("batching many small jobs", "[batch-many]") {
 }
 
 TEST_CASE("batch exception propagation", "[batch-exceptions]") {
-    oxenmq::OxenMQ omq{
+    sispopmq::SispopMQ omq{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -73,7 +73,7 @@ TEST_CASE("batch exception propagation", "[batch-exceptions]") {
     using Catch::Matchers::Message;
 
     SECTION( "value return" ) {
-        oxenmq::Batch<int> batch;
+        sispopmq::Batch<int> batch;
         for (int i : {1, 2})
             batch.add_job([i]() { if (i == 1) return 42; throw std::domain_error("bad value " + std::to_string(i)); });
         batch.completion([&done_promise](auto results) {
@@ -88,7 +88,7 @@ TEST_CASE("batch exception propagation", "[batch-exceptions]") {
     }
 
     SECTION( "lvalue return" ) {
-        oxenmq::Batch<int&> batch;
+        sispopmq::Batch<int&> batch;
         int forty_two = 42;
         for (int i : {1, 2})
             batch.add_job([i,&forty_two]() -> int& {
@@ -110,7 +110,7 @@ TEST_CASE("batch exception propagation", "[batch-exceptions]") {
     }
 
     SECTION( "void return" ) {
-        oxenmq::Batch<void> batch;
+        sispopmq::Batch<void> batch;
         for (int i : {1, 2})
             batch.add_job([i]() { if (i != 1) throw std::domain_error("bad value " + std::to_string(i)); });
         batch.completion([&done_promise](auto results) {

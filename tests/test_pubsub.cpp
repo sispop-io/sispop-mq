@@ -1,14 +1,14 @@
 #include "common.h"
-#include "oxenmq/pubsub.h"
+#include "sispopmq/pubsub.h"
 
-#include <oxenc/hex.h>
+#include <sispopc/hex.h>
 
-using namespace oxenmq;
+using namespace sispopmq;
 using namespace std::chrono_literals;
 
 TEST_CASE("sub OK", "[pubsub]") {
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -25,7 +25,7 @@ TEST_CASE("sub OK", "[pubsub]") {
     });
     server.start();
 
-    OxenMQ client(
+    SispopMQ client(
         [](LogLevel, const char* file, int line, std::string msg) { std::cerr << file << ":" << line << " --C-- " << msg << "\n"; }
         );
 
@@ -56,7 +56,7 @@ TEST_CASE("sub OK", "[pubsub]") {
         auto lock = catch_lock();
         REQUIRE( connected );
         REQUIRE_FALSE( failed );
-        REQUIRE( oxenc::to_hex(pubkey) == oxenc::to_hex(server.get_pubkey()) );
+        REQUIRE( sispopc::to_hex(pubkey) == sispopc::to_hex(server.get_pubkey()) );
     }
 
     std::atomic<bool> got_reply{false};
@@ -100,7 +100,7 @@ TEST_CASE("sub OK", "[pubsub]") {
 
 TEST_CASE("user data", "[pubsub]") {
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -117,7 +117,7 @@ TEST_CASE("user data", "[pubsub]") {
     });
     server.start();
 
-    OxenMQ client(
+    SispopMQ client(
         [](LogLevel, const char* file, int line, std::string msg) { std::cerr << file << ":" << line << " --C-- " << msg << "\n"; }
         );
 
@@ -152,7 +152,7 @@ TEST_CASE("user data", "[pubsub]") {
         auto lock = catch_lock();
         REQUIRE( connected );
         REQUIRE_FALSE( failed );
-        REQUIRE( oxenc::to_hex(pubkey) == oxenc::to_hex(server.get_pubkey()) );
+        REQUIRE( sispopc::to_hex(pubkey) == sispopc::to_hex(server.get_pubkey()) );
     }
 
     std::atomic<bool> got_reply{false};
@@ -234,7 +234,7 @@ TEST_CASE("user data", "[pubsub]") {
 
 TEST_CASE("unsubscribe", "[pubsub]") {
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -255,7 +255,7 @@ TEST_CASE("unsubscribe", "[pubsub]") {
     });
     server.start();
 
-    OxenMQ client(
+    SispopMQ client(
         [](LogLevel, const char* file, int line, std::string msg) { std::cerr << file << ":" << line << " --C-- " << msg << "\n"; }
         );
 
@@ -286,7 +286,7 @@ TEST_CASE("unsubscribe", "[pubsub]") {
         auto lock = catch_lock();
         REQUIRE( connected );
         REQUIRE_FALSE( failed );
-        REQUIRE( oxenc::to_hex(pubkey) == oxenc::to_hex(server.get_pubkey()) );
+        REQUIRE( sispopc::to_hex(pubkey) == sispopc::to_hex(server.get_pubkey()) );
     }
 
     std::atomic<bool> got_reply{false};
@@ -364,7 +364,7 @@ TEST_CASE("unsubscribe", "[pubsub]") {
 
 TEST_CASE("expire", "[pubsub]") {
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -385,7 +385,7 @@ TEST_CASE("expire", "[pubsub]") {
     });
     server.start();
 
-    OxenMQ client(
+    SispopMQ client(
         [](LogLevel, const char* file, int line, std::string msg) { std::cerr << file << ":" << line << " --C-- " << msg << "\n"; }
         );
 
@@ -416,7 +416,7 @@ TEST_CASE("expire", "[pubsub]") {
         auto lock = catch_lock();
         REQUIRE( connected );
         REQUIRE_FALSE( failed );
-        REQUIRE( oxenc::to_hex(pubkey) == oxenc::to_hex(server.get_pubkey()) );
+        REQUIRE( sispopc::to_hex(pubkey) == sispopc::to_hex(server.get_pubkey()) );
     }
 
     std::atomic<bool> got_reply{false};
@@ -462,7 +462,7 @@ TEST_CASE("expire", "[pubsub]") {
 
 TEST_CASE("multiple subs", "[pubsub]") {
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -486,7 +486,7 @@ TEST_CASE("multiple subs", "[pubsub]") {
     bool success_c1;
     std::vector<std::string> data_c1;
     std::string pubkey_c1;
-    OxenMQ client1(
+    SispopMQ client1(
         [](LogLevel, const char* file, int line, std::string msg) { std::cerr << file << ":" << line << " --C-- " << msg << "\n"; }
         );
 
@@ -513,7 +513,7 @@ TEST_CASE("multiple subs", "[pubsub]") {
         auto lock = catch_lock();
         REQUIRE( connected_c1 );
         REQUIRE_FALSE( failed_c1 );
-        REQUIRE( oxenc::to_hex(pubkey_c1) == oxenc::to_hex(server.get_pubkey()) );
+        REQUIRE( sispopc::to_hex(pubkey_c1) == sispopc::to_hex(server.get_pubkey()) );
     }
 
     client1.request(c1, "public.greetings", [&](bool ok, std::vector<std::string> data_) {
@@ -538,7 +538,7 @@ TEST_CASE("multiple subs", "[pubsub]") {
     bool success_c2;
     std::vector<std::string> data_c2;
     std::string pubkey_c2;
-    OxenMQ client2(
+    SispopMQ client2(
         [](LogLevel, const char* file, int line, std::string msg) { std::cerr << file << ":" << line << " --C-- " << msg << "\n"; }
         );
 
@@ -565,7 +565,7 @@ TEST_CASE("multiple subs", "[pubsub]") {
         auto lock = catch_lock();
         REQUIRE( connected_c2 );
         REQUIRE_FALSE( failed_c2 );
-        REQUIRE( oxenc::to_hex(pubkey_c2) == oxenc::to_hex(server.get_pubkey()) );
+        REQUIRE( sispopc::to_hex(pubkey_c2) == sispopc::to_hex(server.get_pubkey()) );
     }
 
     client2.request(c2, "public.greetings", [&](bool ok, std::vector<std::string> data_) {
