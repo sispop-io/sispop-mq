@@ -1,6 +1,6 @@
-#include "oxenmq.h"
-#include "oxenmq-internal.h"
-#include <oxenc/hex.h>
+#include "sispopmq.h"
+#include "sispopmq-internal.h"
+#include <sispopc/hex.h>
 #include <exception>
 #include <future>
 
@@ -19,9 +19,9 @@ extern "C" {
 }
 #endif
 
-namespace oxenmq {
+namespace sispopmq {
 
-void OxenMQ::proxy_quit() {
+void SispopMQ::proxy_quit() {
     OMQ_LOG(debug, "Received quit command, shutting down proxy thread");
 
     assert(std::none_of(workers.begin(), workers.end(), [](auto& worker) { return worker.worker_thread.joinable(); }));
@@ -43,7 +43,7 @@ void OxenMQ::proxy_quit() {
     OMQ_LOG(debug, "Proxy thread teardown complete");
 }
 
-void OxenMQ::proxy_send(oxenc::bt_dict_consumer data) {
+void SispopMQ::proxy_send(sispopc::bt_dict_consumer data) {
     // NB: bt_dict_consumer goes in alphabetical order
     std::string_view hint;
     std::chrono::milliseconds keep_alive{DEFAULT_SEND_KEEP_ALIVE};
@@ -99,7 +99,7 @@ void OxenMQ::proxy_send(oxenc::bt_dict_consumer data) {
     }
     if (!data.skip_until("send"))
         throw std::runtime_error("Internal error: Invalid proxy send command; send parts missing");
-    oxenc::bt_list_consumer send = data.consume_list_consumer();
+    sispopc::bt_list_consumer send = data.consume_list_consumer();
 
     send_option::queue_failure::callback_t callback_nosend;
     if (data.skip_until("send_fail"))
@@ -123,9 +123,9 @@ void OxenMQ::proxy_send(oxenc::bt_dict_consumer data) {
                 nowarn = true;
                 if (optional)
                     OMQ_LOG(debug, "Not sending: send is optional and no connection to ",
-                            oxenc::to_hex(conn_id.pk), " is currently established");
+                            sispopc::to_hex(conn_id.pk), " is currently established");
                 else
-                    OMQ_LOG(error, "Unable to send to ", oxenc::to_hex(conn_id.pk), ": no valid connection address found");
+                    OMQ_LOG(error, "Unable to send to ", sispopc::to_hex(conn_id.pk), ": no valid connection address found");
                 break;
             }
             send_to = sock_route.first;
@@ -176,7 +176,7 @@ void OxenMQ::proxy_send(oxenc::bt_dict_consumer data) {
                         // The incoming connection to the SN is no longer good, but we can retry because
                         // we may have another active connection with the SN (or may want to open one).
                         if (removed) {
-                            OMQ_LOG(debug, "Retrying sending to SN ", oxenc::to_hex(conn_id.pk), " using other sockets");
+                            OMQ_LOG(debug, "Retrying sending to SN ", sispopc::to_hex(conn_id.pk), " using other sockets");
                             retry = true;
                         }
                     }
@@ -199,7 +199,7 @@ void OxenMQ::proxy_send(oxenc::bt_dict_consumer data) {
     }
     if (request) {
         if (sent) {
-            OMQ_LOG(debug, "Added new pending request ", oxenc::to_hex(request_tag));
+            OMQ_LOG(debug, "Added new pending request ", sispopc::to_hex(request_tag));
             pending_requests.insert({ request_tag, {
                 std::chrono::steady_clock::now() + request_timeout, std::move(request_callback) }});
         } else {
@@ -217,7 +217,7 @@ void OxenMQ::proxy_send(oxenc::bt_dict_consumer data) {
     }
 }
 
-void OxenMQ::proxy_reply(oxenc::bt_dict_consumer data) {
+void SispopMQ::proxy_reply(sispopc::bt_dict_consumer data) {
     bool have_conn_id = false;
     ConnectionID conn_id{0};
     if (data.skip_until("conn_id")) {
@@ -236,7 +236,7 @@ void OxenMQ::proxy_reply(oxenc::bt_dict_consumer data) {
     if (!data.skip_until("send"))
         throw std::runtime_error("Internal error: Invalid proxy reply command; send parts missing");
 
-    oxenc::bt_list_consumer send = data.consume_list_consumer();
+    sispopc::bt_list_consumer send = data.consume_list_consumer();
 
     auto pr = peers.equal_range(conn_id);
     if (pr.first == pr.second) {
@@ -271,11 +271,11 @@ void OxenMQ::proxy_reply(oxenc::bt_dict_consumer data) {
     }
 }
 
-void OxenMQ::proxy_control_message(OxenMQ::control_message_array& parts, size_t len) {
+void SispopMQ::proxy_control_message(SispopMQ::control_message_array& parts, size_t len) {
     // We throw an uncaught exception here because we only generate control messages internally in
-    // oxenmq code: if one of these condition fail it's a oxenmq bug.
+    // sispopmq code: if one of these condition fail it's a sispopmq bug.
     if (len < 2)
-        throw std::logic_error("OxenMQ bug: Expected 2-3 message parts for a proxy control message");
+        throw std::logic_error("SispopMQ bug: Expected 2-3 message parts for a proxy control message");
     auto route = view(parts[0]), cmd = view(parts[1]);
     OMQ_TRACE("control message: ", cmd);
     if (len == 3) {
@@ -289,11 +289,11 @@ void OxenMQ::proxy_control_message(OxenMQ::control_message_array& parts, size_t 
             return proxy_reply(data);
         } else if (cmd == "BATCH") {
             OMQ_TRACE("proxy batch jobs");
-            auto ptrval = oxenc::bt_deserialize<uintptr_t>(data);
+            auto ptrval = sispopc::bt_deserialize<uintptr_t>(data);
             return proxy_batch(reinterpret_cast<detail::Batch*>(ptrval));
         } else if (cmd == "INJECT") {
             OMQ_TRACE("proxy inject");
-            return proxy_inject_task(detail::deserialize_object<injected_task>(oxenc::bt_deserialize<uintptr_t>(data)));
+            return proxy_inject_task(detail::deserialize_object<injected_task>(sispopc::bt_deserialize<uintptr_t>(data)));
         } else if (cmd == "SET_SNS") {
             return proxy_set_active_sns(data);
         } else if (cmd == "UPDATE_SNS") {
@@ -308,9 +308,9 @@ void OxenMQ::proxy_control_message(OxenMQ::control_message_array& parts, size_t 
         } else if (cmd == "TIMER") {
             return proxy_timer(data);
         } else if (cmd == "TIMER_DEL") {
-            return proxy_timer_del(oxenc::bt_deserialize<int>(data));
+            return proxy_timer_del(sispopc::bt_deserialize<int>(data));
         } else if (cmd == "BIND") {
-            auto b = detail::deserialize_object<bind_data>(oxenc::bt_deserialize<uintptr_t>(data));
+            auto b = detail::deserialize_object<bind_data>(sispopc::bt_deserialize<uintptr_t>(data));
             if (proxy_bind(b, bind.size()))
                 bind.push_back(std::move(b));
             return;
@@ -334,11 +334,11 @@ void OxenMQ::proxy_control_message(OxenMQ::control_message_array& parts, size_t 
             return;
         }
     }
-    throw std::runtime_error("OxenMQ bug: Proxy received invalid control command: " +
+    throw std::runtime_error("SispopMQ bug: Proxy received invalid control command: " +
             std::string{cmd} + " (" + std::to_string(len) + ")");
 }
 
-bool OxenMQ::proxy_bind(bind_data& b, size_t bind_index) {
+bool SispopMQ::proxy_bind(bind_data& b, size_t bind_index) {
     zmq::socket_t listener{context, zmq::socket_type::router};
     setup_incoming_socket(listener, b.curve, pubkey, privkey, bind_index);
 
@@ -353,11 +353,11 @@ bool OxenMQ::proxy_bind(bind_data& b, size_t bind_index) {
         b.on_bind = nullptr;
     }
     if (!good) {
-        OMQ_LOG(warn, "OxenMQ failed to listen on ", b.address);
+        OMQ_LOG(warn, "SispopMQ failed to listen on ", b.address);
         return false;
     }
 
-    OMQ_LOG(info, "OxenMQ listening on ", b.address);
+    OMQ_LOG(info, "SispopMQ listening on ", b.address);
 
     b.conn_id = next_conn_id++;
     connections.emplace_hint(connections.end(), b.conn_id, std::move(listener));
@@ -367,7 +367,7 @@ bool OxenMQ::proxy_bind(bind_data& b, size_t bind_index) {
     return true;
 }
 
-void OxenMQ::proxy_loop_init() {
+void SispopMQ::proxy_loop_init() {
 
 #if defined(__linux__) || defined(__sun) || defined(__MINGW32__)
     pthread_setname_np(pthread_self(), "omq-proxy");
@@ -423,7 +423,7 @@ void OxenMQ::proxy_loop_init() {
 
     for (size_t i = 0; i < bind.size(); i++) {
         if (!proxy_bind(bind[i], i)) {
-            OMQ_LOG(fatal, "OxenMQ failed to listen on ", bind[i].address);
+            OMQ_LOG(fatal, "SispopMQ failed to listen on ", bind[i].address);
             throw zmq::error_t{};
         }
     }
@@ -456,7 +456,7 @@ void OxenMQ::proxy_loop_init() {
 
     if (-1 == zmq_timers_add(timers.get(),
             std::chrono::milliseconds{CONN_CHECK_INTERVAL}.count(),
-            [](int /*timer_id*/, void* self) { static_cast<OxenMQ*>(self)->proxy_conn_cleanup(); },
+            [](int /*timer_id*/, void* self) { static_cast<SispopMQ*>(self)->proxy_conn_cleanup(); },
             this)) {
         throw zmq::error_t{};
     }
@@ -489,7 +489,7 @@ void OxenMQ::proxy_loop_init() {
     }
 }
 
-void OxenMQ::proxy_loop(std::promise<void> startup) {
+void SispopMQ::proxy_loop(std::promise<void> startup) {
     try {
         proxy_loop_init();
     } catch (...) {
@@ -605,7 +605,7 @@ static bool is_error_response(std::string_view cmd) {
 
 // Return true if we recognized/handled the builtin command (even if we reject it for whatever
 // reason)
-bool OxenMQ::proxy_handle_builtin(int64_t conn_id, zmq::socket_t& sock, std::vector<zmq::message_t>& parts) {
+bool SispopMQ::proxy_handle_builtin(int64_t conn_id, zmq::socket_t& sock, std::vector<zmq::message_t>& parts) {
     // Doubling as a bool and an offset:
     size_t incoming = sock.get(zmq::sockopt::type) == ZMQ_ROUTER;
 
@@ -631,7 +631,7 @@ bool OxenMQ::proxy_handle_builtin(int64_t conn_id, zmq::socket_t& sock, std::vec
         std::string reply_tag{view(parts[tag_pos])};
         auto it = pending_requests.find(reply_tag);
         if (it != pending_requests.end()) {
-            OMQ_LOG(debug, "Received REPLY for pending command ", oxenc::to_hex(reply_tag), "; scheduling callback");
+            OMQ_LOG(debug, "Received REPLY for pending command ", sispopc::to_hex(reply_tag), "; scheduling callback");
             std::vector<std::string> data;
             data.reserve(parts.size() - (tag_pos + 1));
             for (auto it = parts.begin() + (tag_pos + 1); it != parts.end(); ++it)
@@ -641,7 +641,7 @@ bool OxenMQ::proxy_handle_builtin(int64_t conn_id, zmq::socket_t& sock, std::vec
             });
             pending_requests.erase(it);
         } else {
-            OMQ_LOG(warn, "Received REPLY with unknown or already handled reply tag (", oxenc::to_hex(reply_tag), "); ignoring");
+            OMQ_LOG(warn, "Received REPLY with unknown or already handled reply tag (", sispopc::to_hex(reply_tag), "); ignoring");
         }
         return true;
     } else if (cmd == "HI") {
@@ -702,7 +702,7 @@ bool OxenMQ::proxy_handle_builtin(int64_t conn_id, zmq::socket_t& sock, std::vec
             // pre-1.1.0 sent just a plain UNKNOWNCOMMAND (without the actual command); this was not
             // useful, but also this response is *expected* for things 1.0.5 didn't understand, like
             // FORBIDDEN_SN: so log it only at debug level and move on.
-            OMQ_LOG(debug, "Received plain UNKNOWNCOMMAND; remote is probably an older oxenmq. Ignoring.");
+            OMQ_LOG(debug, "Received plain UNKNOWNCOMMAND; remote is probably an older sispopmq. Ignoring.");
             return true;
         }
 
@@ -710,13 +710,13 @@ bool OxenMQ::proxy_handle_builtin(int64_t conn_id, zmq::socket_t& sock, std::vec
             std::string reply_tag{view(parts[2 + incoming])};
             auto it = pending_requests.find(reply_tag);
             if (it != pending_requests.end()) {
-                OMQ_LOG(debug, "Received ", cmd, " REPLY for pending command ", oxenc::to_hex(reply_tag), "; scheduling failure callback");
+                OMQ_LOG(debug, "Received ", cmd, " REPLY for pending command ", sispopc::to_hex(reply_tag), "; scheduling failure callback");
                 proxy_schedule_reply_job([callback=std::move(it->second.second), cmd=std::string{cmd}] {
                     callback(false, {{std::move(cmd)}});
                 });
                 pending_requests.erase(it);
             } else {
-                OMQ_LOG(warn, "Received REPLY with unknown or already handled reply tag (", oxenc::to_hex(reply_tag), "); ignoring");
+                OMQ_LOG(warn, "Received REPLY with unknown or already handled reply tag (", sispopc::to_hex(reply_tag), "); ignoring");
             }
         } else {
             OMQ_LOG(warn, "Received ", cmd, ':', (parts.size() > 1 + incoming ? view(parts[1 + incoming]) : "(unknown command)"sv),
@@ -727,7 +727,7 @@ bool OxenMQ::proxy_handle_builtin(int64_t conn_id, zmq::socket_t& sock, std::vec
     return false;
 }
 
-void OxenMQ::proxy_process_queue() {
+void SispopMQ::proxy_process_queue() {
     if (max_workers == 0) // shutting down
         return;
 

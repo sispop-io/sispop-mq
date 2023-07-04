@@ -1,12 +1,12 @@
-#include "oxenmq.h"
-#include "oxenmq-internal.h"
-#include <oxenc/hex.h>
+#include "sispopmq.h"
+#include "sispopmq-internal.h"
+#include <sispopc/hex.h>
 
-namespace oxenmq {
+namespace sispopmq {
 
 std::ostream& operator<<(std::ostream& o, const ConnectionID& conn) {
     if (!conn.pk.empty())
-        return o << (conn.sn() ? "SN " : "non-SN authenticated remote ") << oxenc::to_hex(conn.pk);
+        return o << (conn.sn() ? "SN " : "non-SN authenticated remote ") << sispopc::to_hex(conn.pk);
     else
         return o << "unauthenticated remote [" << conn.id << "]";
 }
@@ -24,7 +24,7 @@ void add_pollitem(std::vector<zmq::pollitem_t>& pollitems, zmq::socket_t& sock) 
 } // anonymous namespace
 
 
-void OxenMQ::rebuild_pollitems() {
+void SispopMQ::rebuild_pollitems() {
     pollitems.clear();
     add_pollitem(pollitems, command);
     add_pollitem(pollitems, workers_socket);
@@ -35,7 +35,7 @@ void OxenMQ::rebuild_pollitems() {
     connections_updated = false;
 }
 
-void OxenMQ::setup_external_socket(zmq::socket_t& socket) {
+void SispopMQ::setup_external_socket(zmq::socket_t& socket) {
     socket.set(zmq::sockopt::reconnect_ivl, (int) RECONNECT_INTERVAL.count());
     socket.set(zmq::sockopt::reconnect_ivl_max, (int) RECONNECT_INTERVAL_MAX.count());
     socket.set(zmq::sockopt::handshake_ivl, (int) HANDSHAKE_TIME.count());
@@ -50,7 +50,7 @@ void OxenMQ::setup_external_socket(zmq::socket_t& socket) {
     }
 }
 
-void OxenMQ::setup_outgoing_socket(zmq::socket_t& socket, std::string_view remote_pubkey, bool use_ephemeral_routing_id) {
+void SispopMQ::setup_outgoing_socket(zmq::socket_t& socket, std::string_view remote_pubkey, bool use_ephemeral_routing_id) {
 
     setup_external_socket(socket);
 
@@ -71,11 +71,11 @@ void OxenMQ::setup_outgoing_socket(zmq::socket_t& socket, std::string_view remot
 }
 
 
-void OxenMQ::setup_incoming_socket(zmq::socket_t& listener, bool curve, std::string_view pubkey, std::string_view privkey, size_t bind_index) {
+void SispopMQ::setup_incoming_socket(zmq::socket_t& listener, bool curve, std::string_view pubkey, std::string_view privkey, size_t bind_index) {
 
     setup_external_socket(listener);
 
-    listener.set(zmq::sockopt::zap_domain, oxenc::bt_serialize(bind_index));
+    listener.set(zmq::sockopt::zap_domain, sispopc::bt_serialize(bind_index));
     if (curve) {
         listener.set(zmq::sockopt::curve_server, true);
         listener.set(zmq::sockopt::curve_publickey, pubkey);
@@ -86,21 +86,21 @@ void OxenMQ::setup_incoming_socket(zmq::socket_t& listener, bool curve, std::str
 }
 
 // Deprecated versions:
-ConnectionID OxenMQ::connect_remote(std::string_view remote, ConnectSuccess on_connect,
+ConnectionID SispopMQ::connect_remote(std::string_view remote, ConnectSuccess on_connect,
         ConnectFailure on_failure, AuthLevel auth_level, std::chrono::milliseconds timeout) {
     return connect_remote(address{remote}, std::move(on_connect), std::move(on_failure),
             auth_level, connect_option::timeout{timeout});
 }
 
-ConnectionID OxenMQ::connect_remote(std::string_view remote, ConnectSuccess on_connect,
+ConnectionID SispopMQ::connect_remote(std::string_view remote, ConnectSuccess on_connect,
         ConnectFailure on_failure, std::string_view pubkey, AuthLevel auth_level,
         std::chrono::milliseconds timeout) {
     return connect_remote(address{remote}.set_pubkey(pubkey), std::move(on_connect),
             std::move(on_failure), auth_level, connect_option::timeout{timeout});
 }
 
-void OxenMQ::disconnect(ConnectionID id, std::chrono::milliseconds linger) {
-    detail::send_control(get_control_socket(), "DISCONNECT", oxenc::bt_serialize<oxenc::bt_dict>({
+void SispopMQ::disconnect(ConnectionID id, std::chrono::milliseconds linger) {
+    detail::send_control(get_control_socket(), "DISCONNECT", sispopc::bt_serialize<sispopc::bt_dict>({
             {"conn_id", id.id},
             {"linger_ms", linger.count()},
             {"pubkey", id.pk},
@@ -108,7 +108,7 @@ void OxenMQ::disconnect(ConnectionID id, std::chrono::milliseconds linger) {
 }
 
 std::pair<zmq::socket_t *, std::string>
-OxenMQ::proxy_connect_sn(std::string_view remote, std::string_view connect_hint, bool optional, bool incoming_only, bool outgoing_only, bool use_ephemeral_routing_id, std::chrono::milliseconds keep_alive) {
+SispopMQ::proxy_connect_sn(std::string_view remote, std::string_view connect_hint, bool optional, bool incoming_only, bool outgoing_only, bool use_ephemeral_routing_id, std::chrono::milliseconds keep_alive) {
     ConnectionID remote_cid{remote};
     auto its = peers.equal_range(remote_cid);
     peer_info* peer = nullptr;
@@ -122,7 +122,7 @@ OxenMQ::proxy_connect_sn(std::string_view remote, std::string_view connect_hint,
     }
 
     if (peer) {
-        OMQ_TRACE("proxy asked to connect to ", oxenc::to_hex(remote), "; reusing existing connection");
+        OMQ_TRACE("proxy asked to connect to ", sispopc::to_hex(remote), "; reusing existing connection");
         if (peer->route.empty() /* == outgoing*/) {
             if (peer->idle_expiry < keep_alive) {
                 OMQ_LOG(debug, "updating existing outgoing peer connection idle expiry time from ",
@@ -138,7 +138,7 @@ OxenMQ::proxy_connect_sn(std::string_view remote, std::string_view connect_hint,
     }
 
     // No connection so establish a new one
-    OMQ_LOG(debug, "proxy establishing new outbound connection to ", oxenc::to_hex(remote));
+    OMQ_LOG(debug, "proxy establishing new outbound connection to ", sispopc::to_hex(remote));
     std::string addr;
     bool to_self = false && remote == pubkey; // FIXME; need to use a separate listening socket for this, otherwise we can't easily
                                               // tell it wasn't from a remote.
@@ -153,12 +153,12 @@ OxenMQ::proxy_connect_sn(std::string_view remote, std::string_view connect_hint,
             OMQ_LOG(debug, "using connection hint ", connect_hint);
 
         if (addr.empty()) {
-            OMQ_LOG(error, "peer lookup failed for ", oxenc::to_hex(remote));
+            OMQ_LOG(error, "peer lookup failed for ", sispopc::to_hex(remote));
             return {nullptr, ""s};
         }
     }
 
-    OMQ_LOG(debug, oxenc::to_hex(pubkey), " (me) connecting to ", addr, " to reach ", oxenc::to_hex(remote));
+    OMQ_LOG(debug, sispopc::to_hex(pubkey), " (me) connecting to ", addr, " to reach ", sispopc::to_hex(remote));
     zmq::socket_t socket{context, zmq::socket_type::dealer};
     setup_outgoing_socket(socket, remote, use_ephemeral_routing_id);
     try {
@@ -183,7 +183,7 @@ OxenMQ::proxy_connect_sn(std::string_view remote, std::string_view connect_hint,
     return {&it->second, ""s};
 }
 
-std::pair<zmq::socket_t *, std::string> OxenMQ::proxy_connect_sn(oxenc::bt_dict_consumer data) {
+std::pair<zmq::socket_t *, std::string> SispopMQ::proxy_connect_sn(sispopc::bt_dict_consumer data) {
     std::string_view hint, remote_pk;
     std::chrono::milliseconds keep_alive;
     bool optional = false, incoming_only = false, outgoing_only = false, ephemeral_rid = EPHEMERAL_ROUTING_ID;
@@ -211,7 +211,7 @@ std::pair<zmq::socket_t *, std::string> OxenMQ::proxy_connect_sn(oxenc::bt_dict_
 /// Closes outgoing connections and removes all references.  Note that this will call `erase()`
 /// which can invalidate iterators on the various connection containers - if you don't want that,
 /// delete it first so that the container won't contain the element being deleted.
-void OxenMQ::proxy_close_connection(int64_t id, std::chrono::milliseconds linger) {
+void SispopMQ::proxy_close_connection(int64_t id, std::chrono::milliseconds linger) {
     auto it = connections.find(id);
     if (it == connections.end()) {
         OMQ_LOG(warn, "internal error: connection to close (", id, ") doesn't exist!");
@@ -225,7 +225,7 @@ void OxenMQ::proxy_close_connection(int64_t id, std::chrono::milliseconds linger
     outgoing_sn_conns.erase(id);
 }
 
-void OxenMQ::proxy_expire_idle_peers() {
+void SispopMQ::proxy_expire_idle_peers() {
     for (auto it = peers.begin(); it != peers.end(); ) {
         auto &info = it->second;
         if (info.outgoing()) {
@@ -248,7 +248,7 @@ void OxenMQ::proxy_expire_idle_peers() {
     }
 }
 
-void OxenMQ::proxy_conn_cleanup() {
+void SispopMQ::proxy_conn_cleanup() {
     OMQ_TRACE("starting proxy connections cleanup");
 
     // Drop idle connections (if we haven't done it in a while)
@@ -278,7 +278,7 @@ void OxenMQ::proxy_conn_cleanup() {
     for (auto it = pending_requests.begin(); it != pending_requests.end(); ) {
         auto& callback = it->second;
         if (callback.first < now) {
-            OMQ_LOG(debug, "pending request ", oxenc::to_hex(it->first), " expired, invoking callback with failure status and removing");
+            OMQ_LOG(debug, "pending request ", sispopc::to_hex(it->first), " expired, invoking callback with failure status and removing");
             job([callback = std::move(callback.second)] { callback(false, {{"TIMEOUT"s}}); });
             it = pending_requests.erase(it);
         } else {
@@ -289,7 +289,7 @@ void OxenMQ::proxy_conn_cleanup() {
     OMQ_TRACE("done proxy connections cleanup");
 };
 
-void OxenMQ::proxy_connect_remote(oxenc::bt_dict_consumer data) {
+void SispopMQ::proxy_connect_remote(sispopc::bt_dict_consumer data) {
     AuthLevel auth_level = AuthLevel::none;
     long long conn_id = -1;
     ConnectSuccess on_connect;
@@ -322,7 +322,7 @@ void OxenMQ::proxy_connect_remote(oxenc::bt_dict_consumer data) {
         throw std::runtime_error("Internal error: CONNECT_REMOTE proxy command missing required 'conn_id' and/or 'remote' value");
 
     OMQ_LOG(debug, "Establishing remote connection to ", remote,
-            remote_pubkey.empty() ? " (NULL auth)" : " via CURVE expecting pubkey " + oxenc::to_hex(remote_pubkey));
+            remote_pubkey.empty() ? " (NULL auth)" : " via CURVE expecting pubkey " + sispopc::to_hex(remote_pubkey));
 
     zmq::socket_t sock{context, zmq::socket_type::dealer};
     try {
@@ -350,7 +350,7 @@ void OxenMQ::proxy_connect_remote(oxenc::bt_dict_consumer data) {
     peer.activity();
 }
 
-void OxenMQ::proxy_disconnect(oxenc::bt_dict_consumer data) {
+void SispopMQ::proxy_disconnect(sispopc::bt_dict_consumer data) {
     ConnectionID connid{-1};
     std::chrono::milliseconds linger = 1s;
 
@@ -366,7 +366,7 @@ void OxenMQ::proxy_disconnect(oxenc::bt_dict_consumer data) {
 
     proxy_disconnect(std::move(connid), linger);
 }
-void OxenMQ::proxy_disconnect(ConnectionID conn, std::chrono::milliseconds linger) {
+void SispopMQ::proxy_disconnect(ConnectionID conn, std::chrono::milliseconds linger) {
     OMQ_TRACE("Disconnecting outgoing connection to ", conn);
     auto pr = peers.equal_range(conn);
     for (auto it = pr.first; it != pr.second; ++it) {

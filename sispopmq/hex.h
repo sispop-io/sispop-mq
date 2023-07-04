@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2021, The Oxen Project
+// Copyright (c) 2019-2021, The Sispop Project
 //
 // All rights reserved.
 //
@@ -27,20 +27,21 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
+#include <sispopc/hex.h>
 
-// Compatibility shim for oxenc includes
+// Compatibility shim for sispopc includes
 
-#include <oxenc/base64.h>
+namespace sispopmq {
 
-namespace oxenmq {
-
-using oxenc::to_base64_size;
-using oxenc::from_base64_size;
-using oxenc::base64_encoder;
-using oxenc::to_base64;
-using oxenc::to_base64_unpadded;
-using oxenc::is_base64;
-using oxenc::base64_decoder;
-using oxenc::from_base64;
+using sispopc::to_hex_size;
+using sispopc::from_hex_size;
+using sispopc::hex_encoder;
+using sispopc::to_hex;
+using sispopc::is_hex_digit;
+using sispopc::is_hex;
+using sispopc::hex_decoder;
+using sispopc::from_hex_digit;
+using sispopc::from_hex_pair;
+using sispopc::from_hex;
 
 }

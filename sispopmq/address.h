@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021, The Oxen Project
+// Copyright (c) 2020-2021, The Sispop Project
 //
 // All rights reserved.
 //
@@ -33,11 +33,11 @@
 #include <iosfwd>
 #include <functional>
 
-namespace oxenmq {
+namespace sispopmq {
 
 using namespace std::literals;
 
-/** OxenMQ address abstraction class.  This class uses and extends standard ZMQ addresses allowing
+/** SispopMQ address abstraction class.  This class uses and extends standard ZMQ addresses allowing
  * extra parameters to be passed in in a relative standard way.
  *
  * External ZMQ addresses generally have two forms that we are concerned with: one for TCP and one
@@ -207,12 +207,12 @@ struct address {
 // Outputs address.full_address() when sent to an ostream.
 std::ostream& operator<<(std::ostream& o, const address& a);
 
-} // namespace oxenmq
+} // namespace sispopmq
 
 namespace std {
-template<> struct hash<oxenmq::address> {
-    std::size_t operator()(const oxenmq::address& a) const noexcept {
-        return std::hash<std::string>{}(a.full_address(oxenmq::address::encoding::hex));
+template<> struct hash<sispopmq::address> {
+    std::size_t operator()(const sispopmq::address& a) const noexcept {
+        return std::hash<std::string>{}(a.full_address(sispopmq::address::encoding::hex));
     }
 };
 } // namespace std

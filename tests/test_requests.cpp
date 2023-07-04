@@ -1,11 +1,11 @@
 #include "common.h"
-#include <oxenc/hex.h>
+#include <sispopc/hex.h>
 
-using namespace oxenmq;
+using namespace sispopmq;
 
 TEST_CASE("basic requests", "[requests]") {
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -20,7 +20,7 @@ TEST_CASE("basic requests", "[requests]") {
     });
     server.start();
 
-    OxenMQ client(
+    SispopMQ client(
         [](LogLevel, const char* file, int line, std::string msg) { std::cerr << file << ":" << line << " --C-- " << msg << "\n"; }
         );
     //client.log_level(LogLevel::trace);
@@ -39,7 +39,7 @@ TEST_CASE("basic requests", "[requests]") {
         auto lock = catch_lock();
         REQUIRE( connected );
         REQUIRE_FALSE( failed );
-        REQUIRE( oxenc::to_hex(pubkey) == oxenc::to_hex(server.get_pubkey()) );
+        REQUIRE( sispopc::to_hex(pubkey) == sispopc::to_hex(server.get_pubkey()) );
     }
 
     std::atomic<bool> got_reply{false};
@@ -62,7 +62,7 @@ TEST_CASE("basic requests", "[requests]") {
 
 TEST_CASE("request from server to client", "[requests]") {
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -77,7 +77,7 @@ TEST_CASE("request from server to client", "[requests]") {
     });
     server.start();
 
-    OxenMQ client(
+    SispopMQ client(
         [](LogLevel, const char* file, int line, std::string msg) { std::cerr << file << ":" << line << " --C-- " << msg << "\n"; }
         );
     //client.log_level(LogLevel::trace);
@@ -102,7 +102,7 @@ TEST_CASE("request from server to client", "[requests]") {
         REQUIRE( connected.load() );
         REQUIRE( !failed.load() );
         REQUIRE( i <= 1 );
-        REQUIRE( oxenc::to_hex(pubkey) == oxenc::to_hex(server.get_pubkey()) );
+        REQUIRE( sispopc::to_hex(pubkey) == sispopc::to_hex(server.get_pubkey()) );
     }
 
     std::atomic<bool> got_reply{false};
@@ -125,7 +125,7 @@ TEST_CASE("request from server to client", "[requests]") {
 
 TEST_CASE("request timeouts", "[requests][timeout]") {
     std::string listen = random_localhost();
-    OxenMQ server{
+    SispopMQ server{
         "", "", // generate ephemeral keys
         false, // not a service node
         [](auto) { return ""; },
@@ -138,7 +138,7 @@ TEST_CASE("request timeouts", "[requests][timeout]") {
     server.add_request_command("public", "blackhole", [&](Message& m) { /* doesn't reply */ });
     server.start();
 
-    OxenMQ client(
+    SispopMQ client(
         [](LogLevel, const char* file, int line, std::string msg) { std::cerr << file << ":" << line << " --C-- " << msg << "\n"; }
         );
     //client.log_level(LogLevel::trace);
@@ -157,7 +157,7 @@ TEST_CASE("request timeouts", "[requests][timeout]") {
 
     REQUIRE( connected );
     REQUIRE_FALSE( failed );
-    REQUIRE( oxenc::to_hex(pubkey) == oxenc::to_hex(server.get_pubkey()) );
+    REQUIRE( sispopc::to_hex(pubkey) == sispopc::to_hex(server.get_pubkey()) );
 
     std::atomic<bool> got_triggered{false};
     bool success;
@@ -167,7 +167,7 @@ TEST_CASE("request timeouts", "[requests][timeout]") {
             success = ok;
             data = std::move(data_);
         },
-        oxenmq::send_option::request_timeout{10ms}
+        sispopmq::send_option::request_timeout{10ms}
     );
 
     std::atomic<bool> got_triggered2{false};
@@ -176,7 +176,7 @@ TEST_CASE("request timeouts", "[requests][timeout]") {
             success = ok;
             data = std::move(data_);
         },
-        oxenmq::send_option::request_timeout{200ms}
+        sispopmq::send_option::request_timeout{200ms}
     );
 
     std::this_thread::sleep_for(100ms);

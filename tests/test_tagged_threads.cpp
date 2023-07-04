@@ -1,9 +1,9 @@
-#include "oxenmq/batch.h"
+#include "sispopmq/batch.h"
 #include "common.h"
 #include <future>
 
 TEST_CASE("tagged thread start functions", "[tagged][start]") {
-    oxenmq::OxenMQ omq{get_logger(""), LogLevel::trace};
+    sispopmq::SispopMQ omq{get_logger(""), LogLevel::trace};
 
     omq.set_general_threads(2);
     omq.set_batch_threads(2);
@@ -26,13 +26,13 @@ TEST_CASE("tagged thread start functions", "[tagged][start]") {
 }
 
 TEST_CASE("tagged threads quit-before-start", "[tagged][quit]") {
-    auto omq = std::make_unique<oxenmq::OxenMQ>(get_logger(""), LogLevel::trace);
+    auto omq = std::make_unique<sispopmq::SispopMQ>(get_logger(""), LogLevel::trace);
     auto t_abc = omq->add_tagged_thread("abc");
     REQUIRE_NOTHROW(omq.reset());
 }
 
 TEST_CASE("batch jobs to tagged threads", "[tagged][batch]") {
-    oxenmq::OxenMQ omq{get_logger(""), LogLevel::trace};
+    sispopmq::SispopMQ omq{get_logger(""), LogLevel::trace};
 
     omq.set_general_threads(2);
     omq.set_batch_threads(2);
@@ -111,7 +111,7 @@ TEST_CASE("batch jobs to tagged threads", "[tagged][batch]") {
 }
 
 TEST_CASE("batch job completion on tagged threads", "[tagged][batch-completion]") {
-    oxenmq::OxenMQ omq{get_logger(""), LogLevel::trace};
+    sispopmq::SispopMQ omq{get_logger(""), LogLevel::trace};
 
     omq.set_general_threads(4);
     omq.set_batch_threads(4);
@@ -119,7 +119,7 @@ TEST_CASE("batch job completion on tagged threads", "[tagged][batch-completion]"
     auto t_abc = omq.add_tagged_thread("abc", [&] { id_abc = std::this_thread::get_id(); });
     omq.start();
 
-    oxenmq::Batch<int> batch;
+    sispopmq::Batch<int> batch;
     for (int i = 1; i < 10; i++)
         batch.add_job([i, &id_abc]() { if (std::this_thread::get_id() == id_abc) return 0; return i; });
 
@@ -140,7 +140,7 @@ TEST_CASE("batch job completion on tagged threads", "[tagged][batch-completion]"
 
 
 TEST_CASE("timer job completion on tagged threads", "[tagged][timer]") {
-    oxenmq::OxenMQ omq{get_logger(""), LogLevel::trace};
+    sispopmq::SispopMQ omq{get_logger(""), LogLevel::trace};
 
     omq.set_general_threads(4);
     omq.set_batch_threads(4);

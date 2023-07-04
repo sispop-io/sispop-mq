@@ -1,4 +1,4 @@
-#include "oxenmq/address.h"
+#include "sispopmq/address.h"
 #include "common.h"
 
 const std::string pk = "\xf1\x6b\xa5\x59\x10\x39\xf0\x89\xb4\x2a\x83\x41\x75\x09\x30\x94\x07\x4d\x0d\x93\x7a\x79\xe5\x3e\x5c\xe7\x30\xf9\x46\xe1\x4b\x88";
@@ -135,7 +135,7 @@ TEST_CASE("address hashing", "[address][hash]") {
     address c{"ipc:///tmp/some.sock"};
     address d{"ipc:///tmp/some.other.sock"};
 
-    std::hash<oxenmq::address> hasher{};
+    std::hash<sispopmq::address> hasher{};
     REQUIRE( hasher(a) != hasher(b) );
     REQUIRE( hasher(a) != hasher(c) );
     REQUIRE( hasher(a) != hasher(d) );
@@ -143,14 +143,14 @@ TEST_CASE("address hashing", "[address][hash]") {
     REQUIRE( hasher(b) != hasher(d) );
     REQUIRE( hasher(c) != hasher(d) );
 
-    std::unordered_set<oxenmq::address> set;
+    std::unordered_set<sispopmq::address> set;
     set.insert(a);
     set.insert(b);
     set.insert(c);
     set.insert(d);
 
     CHECK( set.size() == 4 );
-    std::unordered_map<oxenmq::address, int> count;
+    std::unordered_map<sispopmq::address, int> count;
     for (const auto& addr : set)
         count[addr]++;
 

@@ -1,6 +1,6 @@
-#include "oxenmq.h"
+#include "sispopmq.h"
 #include "batch.h"
-#include "oxenmq-internal.h"
+#include "sispopmq-internal.h"
 
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
 extern "C" {
@@ -8,9 +8,9 @@ extern "C" {
 #include <pthread_np.h>
 }
 #endif
-#include <oxenc/variant.h>
+#include <sispopc/variant.h>
 
-namespace oxenmq {
+namespace sispopmq {
 
 namespace {
 
@@ -18,7 +18,7 @@ namespace {
 // received.  If "QUIT" was received, replies with "QUITTING" on the socket and closes it, then
 // returns false.
 [[gnu::always_inline]] inline
-bool worker_wait_for(OxenMQ& omq, zmq::socket_t& sock, std::vector<zmq::message_t>& parts, const std::string_view worker_id, const std::string_view expect) {
+bool worker_wait_for(SispopMQ& omq, zmq::socket_t& sock, std::vector<zmq::message_t>& parts, const std::string_view worker_id, const std::string_view expect) {
     while (true) {
         omq.log(LogLevel::trace, __FILE__, __LINE__, "worker ", worker_id, " waiting for ", expect);
         parts.clear();
@@ -47,7 +47,7 @@ bool worker_wait_for(OxenMQ& omq, zmq::socket_t& sock, std::vector<zmq::message_
 
 }
 
-void OxenMQ::worker_thread(unsigned int index, std::optional<std::string> tagged, std::function<void()> start) {
+void SispopMQ::worker_thread(unsigned int index, std::optional<std::string> tagged, std::function<void()> start) {
     std::string routing_id = (tagged ? "t" : "w") +
         std::string(reinterpret_cast<const char*>(&index), sizeof(index)); // for routing
     std::string worker_id{tagged ? *tagged : "w" + std::to_string(index)}; // for debug
@@ -74,8 +74,8 @@ void OxenMQ::worker_thread(unsigned int index, std::optional<std::string> tagged
 
     bool waiting_for_command;
     if (tagged) {
-        // If we're a tagged worker then we got started up before OxenMQ started, so we need to wait
-        // for an all-clear signal from OxenMQ first, then we fire our `start` callback, then we can
+        // If we're a tagged worker then we got started up before SispopMQ started, so we need to wait
+        // for an all-clear signal from SispopMQ first, then we fire our `start` callback, then we can
         // start waiting for commands in the main loop further down.  (We also can't get the
         // reference to our `tagged_workers` element until the main proxy threads is running).
 
@@ -136,7 +136,7 @@ void OxenMQ::worker_thread(unsigned int index, std::optional<std::string> tagged
                 callback(message);
             }
         }
-        catch (const oxenc::bt_deserialize_invalid& e) {
+        catch (const sispopc::bt_deserialize_invalid& e) {
             OMQ_LOG(warn, worker_id, " deserialization failed: ", e.what(), "; ignoring request");
         }
 #ifndef BROKEN_APPLE_VARIANT
@@ -161,7 +161,7 @@ void OxenMQ::worker_thread(unsigned int index, std::optional<std::string> tagged
 }
 
 
-OxenMQ::run_info& OxenMQ::get_idle_worker() {
+SispopMQ::run_info& SispopMQ::get_idle_worker() {
     if (idle_worker_count == 0) {
         uint32_t id = workers.size();
         workers.emplace_back();
@@ -175,7 +175,7 @@ OxenMQ::run_info& OxenMQ::get_idle_worker() {
     return workers[id];
 }
 
-void OxenMQ::proxy_worker_message(OxenMQ::control_message_array& parts, size_t len) {
+void SispopMQ::proxy_worker_message(SispopMQ::control_message_array& parts, size_t len) {
     // Process messages sent by workers
     if (len != 2) {
         OMQ_LOG(error, "Received send invalid ", len, "-part message");
@@ -266,14 +266,14 @@ void OxenMQ::proxy_worker_message(OxenMQ::control_message_array& parts, size_t l
     }
 }
 
-void OxenMQ::proxy_run_worker(run_info& run) {
+void SispopMQ::proxy_run_worker(run_info& run) {
     if (!run.worker_thread.joinable())
         run.worker_thread = std::thread{[this, id=run.worker_id] { worker_thread(id); }};
     else
         send_routed_message(workers_socket, run.worker_routing_id, "RUN");
 }
 
-void OxenMQ::proxy_to_worker(int64_t conn_id, zmq::socket_t& sock, std::vector<zmq::message_t>& parts) {
+void SispopMQ::proxy_to_worker(int64_t conn_id, zmq::socket_t& sock, std::vector<zmq::message_t>& parts) {
     bool outgoing = sock.get(zmq::sockopt::type) == ZMQ_DEALER;
 
     peer_info tmp_peer;
@@ -384,16 +384,16 @@ void OxenMQ::proxy_to_worker(int64_t conn_id, zmq::socket_t& sock, std::vector<z
     category.active_threads++;
 }
 
-void OxenMQ::inject_task(const std::string& category, std::string command, std::string remote, std::function<void()> callback) {
+void SispopMQ::inject_task(const std::string& category, std::string command, std::string remote, std::function<void()> callback) {
     if (!callback) return;
     auto it = categories.find(category);
     if (it == categories.end())
         throw std::out_of_range{"Invalid category `" + category + "': category does not exist"};
-    detail::send_control(get_control_socket(), "INJECT", oxenc::bt_serialize(detail::serialize_object(
+    detail::send_control(get_control_socket(), "INJECT", sispopc::bt_serialize(detail::serialize_object(
                 injected_task{it->second, std::move(command), std::move(remote), std::move(callback)})));
 }
 
-void OxenMQ::proxy_inject_task(injected_task task) {
+void SispopMQ::proxy_inject_task(injected_task task) {
     auto& category = task.cat;
     if (category.active_threads >= category.reserved_threads && active_workers() >= general_workers) {
         // No free worker slot, queue for later
