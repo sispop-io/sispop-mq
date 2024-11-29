@@ -81,7 +81,7 @@ target_include_directories(sispopmq
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cppzmq>
 )
 
-target_compile_options(sispopmq PRIVATE -Wall -Wextra -Werror)
+target_compile_options(sispopmq PRIVATE -Wall -Wextra)
 set_target_properties(sispopmq PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
